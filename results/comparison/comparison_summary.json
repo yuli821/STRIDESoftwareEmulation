@@ -1,0 +1,150 @@
+{
+  "ewma_greedy": {
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.258973168,
+      "aggregate_B_adm_GB": 0.194491485,
+      "aggregate_B_drop_GB": 0.064481683,
+      "overall_drop_ratio": 0.24898982198804473,
+      "mean_P_max": 0.5601711451818772,
+      "p99_P_max": 0.6699229472645645,
+      "mean_fairness_P": 0.9046093389751875,
+      "mean_imbalance_B": 0.26925232700879503,
+      "total_reassignments": 200
+    },
+    "stateful": {
+      "domain": "stateful",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.11696511,
+      "aggregate_B_adm_GB": 0.111625326,
+      "aggregate_B_drop_GB": 0.003703297,
+      "overall_drop_ratio": 0.031661552748507654,
+      "mean_P_max": 0.3390443121908581,
+      "p99_P_max": 0.6698305396581571,
+      "mean_fairness_P": 0.6809000132752935,
+      "mean_imbalance_B": 0.41424169077106593,
+      "total_reassignments": 42
+    },
+    "handoffs_total": 42,
+    "handoffs_mean_latency_ns": 101798.53204655377,
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 1193621,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    }
+  },
+  "reactive_greedy": {
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.258973168,
+      "aggregate_B_adm_GB": 0.197672984,
+      "aggregate_B_drop_GB": 0.061300184,
+      "overall_drop_ratio": 0.23670476935278484,
+      "mean_P_max": 0.5582385573788654,
+      "p99_P_max": 0.6796408978491291,
+      "mean_fairness_P": 0.9097957133438747,
+      "mean_imbalance_B": 0.24077485080450453,
+      "total_reassignments": 180
+    },
+    "stateful": {
+      "domain": "stateful",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.11696511,
+      "aggregate_B_adm_GB": 0.109711702,
+      "aggregate_B_drop_GB": 0.004764862,
+      "overall_drop_ratio": 0.040737464360098494,
+      "mean_P_max": 0.348237692254569,
+      "p99_P_max": 0.6774368745072524,
+      "mean_fairness_P": 0.6408330927547463,
+      "mean_imbalance_B": 0.40756766719409154,
+      "total_reassignments": 55
+    },
+    "handoffs_total": 55,
+    "handoffs_mean_latency_ns": 100257.74104148861,
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 1190659,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    }
+  },
+  "reactive_oneshot": {
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.258973168,
+      "aggregate_B_adm_GB": 0.199739967,
+      "aggregate_B_drop_GB": 0.059233201,
+      "overall_drop_ratio": 0.2287233131426187,
+      "mean_P_max": 0.5542464346320046,
+      "p99_P_max": 0.6813260162718693,
+      "mean_fairness_P": 0.9156371714275917,
+      "mean_imbalance_B": 0.25537240006602285,
+      "total_reassignments": 391
+    },
+    "stateful": {
+      "domain": "stateful",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.11696511,
+      "aggregate_B_adm_GB": 0.10962101,
+      "aggregate_B_drop_GB": 0.005353904,
+      "overall_drop_ratio": 0.04577351314421882,
+      "mean_P_max": 0.34623952750686715,
+      "p99_P_max": 0.6916347084246022,
+      "mean_fairness_P": 0.6561388473565491,
+      "mean_imbalance_B": 0.42400286058735287,
+      "total_reassignments": 53
+    },
+    "handoffs_total": 53,
+    "handoffs_mean_latency_ns": 99605.87568433542,
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 1191617,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    }
+  },
+  "static": {
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.258973168,
+      "aggregate_B_adm_GB": 0.188173753,
+      "aggregate_B_drop_GB": 0.070799415,
+      "overall_drop_ratio": 0.2733851369497862,
+      "mean_P_max": 0.5984701057807978,
+      "p99_P_max": 0.6863431496008415,
+      "mean_fairness_P": 0.6267901121095011,
+      "mean_imbalance_B": 0.2650321799288255,
+      "total_reassignments": 0
+    },
+    "stateful": {
+      "domain": "stateful",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.11696511,
+      "aggregate_B_adm_GB": 0.096832012,
+      "aggregate_B_drop_GB": 0.020133098,
+      "overall_drop_ratio": 0.17212909046124952,
+      "mean_P_max": 0.4866449195106656,
+      "p99_P_max": 0.7067340731907537,
+      "mean_fairness_P": 0.44194397516587175,
+      "mean_imbalance_B": 0.4728891955541543,
+      "total_reassignments": 0
+    },
+    "handoffs_total": 0,
+    "handoffs_mean_latency_ns": 0.0,
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 1089520,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    }
+  }
+}

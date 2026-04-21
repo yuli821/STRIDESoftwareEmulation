@@ -1,0 +1,30 @@
+{
+  "stateless": {
+    "domain": "stateless",
+    "epochs": 200,
+    "aggregate_B_gen_GB": 0.14204001,
+    "aggregate_B_adm_GB": 0.092749762,
+    "aggregate_B_drop_GB": 0.049290248,
+    "overall_drop_ratio": 0.34701664692927014,
+    "mean_P_max": 0.5881081293215793,
+    "p99_P_max": 0.67084227594345,
+    "mean_jain_P": 0.9220891574453165,
+    "mean_gini_B_gen": 0.1473736810183495,
+    "total_reassignments": 0
+  },
+  "stateful": {
+    "domain": "stateful",
+    "epochs": 200,
+    "aggregate_B_gen_GB": 0.0924328,
+    "aggregate_B_adm_GB": 0.080741061,
+    "aggregate_B_drop_GB": 0.011547451,
+    "overall_drop_ratio": 0.12492806666031972,
+    "mean_P_max": 0.443329298775801,
+    "p99_P_max": 0.553866568442952,
+    "mean_jain_P": 0.2789951561768064,
+    "mean_gini_B_gen": 0.30689024551321076,
+    "total_reassignments": 3
+  },
+  "handoffs_total": 3,
+  "handoffs_mean_latency_ns": 105741.12765251099
+}
