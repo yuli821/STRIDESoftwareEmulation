@@ -8,12 +8,17 @@ Per bin we capture:
   * B_q_drop, N_q_drop       : dropped bytes / packets this bin (from pipeline)
   * K_q                      : credits returned to FPGA this bin (from pipeline)
   * V_q at end of bin        : available credits at FPGA
-At epoch end we compute O_q, G_q+, L_q, P_q per the paper.
+  * latency_samples          : per-packet end-to-end latencies (ns) for
+                               admitted packets this bin; used at epoch
+                               end to compute tail quantiles
+                               (p50/p95/p99/p99.9/max).
+At epoch end we compute O_q, G_q+, L_q, P_q per the paper, plus the
+tail-latency summary over the epoch window.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict
+from dataclasses import dataclass, field
+from typing import Dict, List
 
 import numpy as np
 
@@ -44,6 +49,10 @@ class DomainTelemetry:
         self.N_q_drop = np.zeros((H, Q), dtype=np.int64)
         self.K_q = np.zeros((H, Q), dtype=np.int64)
         self.V_q = np.zeros((H + 1, Q), dtype=np.int64)
+        # Per-epoch latency sample buffer (flat list of per-packet
+        # end-to-end latencies in ns, across all queues/bins). Reset
+        # each epoch.
+        self.latency_samples_ns: List[float] = []
 
     def set_V_start(self, V_start: np.ndarray) -> None:
         self.V_q[0] = V_start
@@ -58,7 +67,8 @@ class DomainTelemetry:
                    drop_pkts: np.ndarray,
                    drop_bytes: np.ndarray,
                    K_q_this_bin: np.ndarray,
-                   V_q_end: np.ndarray) -> None:
+                   V_q_end: np.ndarray,
+                   latency_samples_ns: List[float] = None) -> None:
         Q = self.num_queues
         self.B_b[k] = bucket_bytes
         self.N_b[k] = bucket_pkts
@@ -72,6 +82,8 @@ class DomainTelemetry:
         self.N_q_drop[k] = drop_pkts
         self.K_q[k] = K_q_this_bin
         self.V_q[k + 1] = V_q_end
+        if latency_samples_ns:
+            self.latency_samples_ns.extend(latency_samples_ns)
 
     def finalize_epoch(self, delta_bin_ns: float) -> Dict[str, np.ndarray]:
         H = self.H
@@ -101,6 +113,8 @@ class DomainTelemetry:
         P_q = np.clip(self.w1 * O_q + self.w2 * G_q_plus + self.w3 * L_q,
                       0.0, 1.0)
 
+        lat_stats = self._latency_stats()
+
         return dict(
             B_b=B_b, N_b=N_b, R_b_peak=R_b_peak,
             B_q_gen=B_q_gen, N_q_gen=N_q_gen,
@@ -109,4 +123,30 @@ class DomainTelemetry:
             K_q=K_q, R_q_peak=R_q_peak,
             U_start=U_start, U_end=U_end, U_max=U_max,
             G_q=G_q, O_q=O_q, G_q_plus=G_q_plus, L_q=L_q, P_q=P_q,
+            **lat_stats,
+        )
+
+    def _latency_stats(self) -> Dict[str, float]:
+        """Compute tail-latency summary (mean, p50, p95, p99, p99.9, max)
+        from this epoch's per-packet samples. All values are in
+        nanoseconds; returns zero-filled stats when no packets were
+        admitted this epoch."""
+        samples = self.latency_samples_ns
+        if not samples:
+            return dict(
+                lat_n=0, lat_mean_ns=0.0,
+                lat_p50_ns=0.0, lat_p95_ns=0.0,
+                lat_p99_ns=0.0, lat_p999_ns=0.0,
+                lat_max_ns=0.0,
+            )
+        arr = np.asarray(samples, dtype=np.float64)
+        qs = np.quantile(arr, [0.50, 0.95, 0.99, 0.999])
+        return dict(
+            lat_n=int(arr.size),
+            lat_mean_ns=float(arr.mean()),
+            lat_p50_ns=float(qs[0]),
+            lat_p95_ns=float(qs[1]),
+            lat_p99_ns=float(qs[2]),
+            lat_p999_ns=float(qs[3]),
+            lat_max_ns=float(arr.max()),
         )

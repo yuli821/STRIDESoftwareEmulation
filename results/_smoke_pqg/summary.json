@@ -1,0 +1,110 @@
+{
+  "stateless": {
+    "domain": "stateless",
+    "epochs": 20,
+    "aggregate_B_gen_GB": 25.88701196,
+    "aggregate_B_adm_GB": 0.010916131,
+    "aggregate_B_drop_GB": 0.005592719,
+    "overall_drop_ratio": 0.0002160434355514548,
+    "mean_P_max": 0.1845966435398055,
+    "p99_P_max": 0.3116911208140533,
+    "mean_fairness_P": 0.5864855385771108,
+    "mean_imbalance_B": 0.21242740833445425,
+    "total_reassignments": 0
+  },
+  "stateful": {
+    "domain": "stateful",
+    "epochs": 1,
+    "aggregate_B_gen_GB": 12.016819695,
+    "aggregate_B_adm_GB": 0.005340071,
+    "aggregate_B_drop_GB": 0.002991224,
+    "overall_drop_ratio": 0.00024891977044846556,
+    "mean_P_max": 0.4066180814520842,
+    "p99_P_max": 0.4066180814520842,
+    "mean_fairness_P": 0.4369327817299557,
+    "mean_imbalance_B": 0.520994369644239,
+    "total_reassignments": 0
+  },
+  "epochs": {
+    "stateless_epoch_bins": 5,
+    "stateful_epoch_bins": 100,
+    "delta_bin_ns": 10000.0,
+    "stateless_epoch_ns": 50000.0,
+    "stateful_epoch_ns": 1000000.0
+  },
+  "workload_realism": {
+    "stateless": [
+      {
+        "domain": "stateless",
+        "kind": "cache",
+        "n_flows": 32,
+        "target_gbps": 18.0,
+        "realized_gbps_before": 383.597623168,
+        "realized_gbps": 24.042048336,
+        "total_packets": 21096942,
+        "mean_pkt_bytes": 142.44984140355507,
+        "rate_error_fraction": 0.33566935200000003,
+        "warn_rate_mismatch": true
+      },
+      {
+        "domain": "stateless",
+        "kind": "web",
+        "n_flows": 40,
+        "target_gbps": 15.0,
+        "realized_gbps_before": 54.337904632,
+        "realized_gbps": 14.976150416,
+        "total_packets": 4383979,
+        "mean_pkt_bytes": 427.0136335050875,
+        "rate_error_fraction": -0.001589972266666706,
+        "warn_rate_mismatch": false
+      },
+      {
+        "domain": "stateless",
+        "kind": "hadoop",
+        "n_flows": 12,
+        "target_gbps": 12.0,
+        "realized_gbps_before": 189.244365336,
+        "realized_gbps": 168.077942144,
+        "total_packets": 21804895,
+        "mean_pkt_bytes": 963.5333152487091,
+        "rate_error_fraction": 13.006495178666666,
+        "warn_rate_mismatch": true
+      }
+    ],
+    "stateful": [
+      {
+        "domain": "stateful",
+        "kind": "web",
+        "n_flows": 24,
+        "target_gbps": 12.0,
+        "realized_gbps_before": 32.483789464,
+        "realized_gbps": 12.045048632,
+        "total_packets": 3521989,
+        "mean_pkt_bytes": 427.49454328221924,
+        "rate_error_fraction": 0.0037540526666666927,
+        "warn_rate_mismatch": false
+      },
+      {
+        "domain": "stateful",
+        "kind": "hadoop",
+        "n_flows": 6,
+        "target_gbps": 8.0,
+        "realized_gbps_before": 94.639174712,
+        "realized_gbps": 84.089510744,
+        "total_packets": 10908944,
+        "mean_pkt_bytes": 963.5386195950772,
+        "rate_error_fraction": 9.511188843,
+        "warn_rate_mismatch": true
+      }
+    ]
+  },
+  "handoffs_total": 0,
+  "handoffs_mean_latency_ns": 0.0,
+  "pcie": {
+    "bandwidth_gbps": 128.0,
+    "fifo_bytes": 262144,
+    "total_accept_pkts": 32860,
+    "total_pcie_drops_stateless": 4546,
+    "total_pcie_drops_stateful": 2489
+  }
+}

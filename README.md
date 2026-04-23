@@ -118,8 +118,16 @@ fallback (useful as an uncongested baseline). Your measured RTT table
 Each flow has a 5-tuple and a pre-computed timeline
 `(timestamps_ns, sizes_bytes)` spanning the sim horizon. Sources:
 
-* **`trace_mix`** — compose `web` / `cache` / `hadoop` / `synthetic_rates`
-  kinds (Meta microburst style, IMC '17).
+* **`imc17_cdf`** (preferred) — per-class generator driven by digitized
+  CDFs approximated from Zhang et al. "High-resolution measurement of
+  datacenter microbursts" (IMC '17) and Roy et al. SIGCOMM '15. For
+  each class (`web` / `cache` / `hadoop`) the generator samples
+  ON/OFF durations, intra-burst inter-arrival times and per-packet
+  sizes from the class's CDFs (see `src/imc17_cdf.py`), then performs
+  a shape-preserving time-scale correction so the long-run aggregate
+  rate matches the configured `gbps` within <2%.
+* **`trace_mix`** — legacy; compose `web` / `cache` / `hadoop` /
+  `synthetic_rates` kinds using hand-coded heuristic generators.
 * **`trace_csv`** — load real per-packet traces from CSV
   (`flow_id, timestamp_ns, size_bytes [, src_ip, dst_ip, src_port, dst_port, proto]`).
 * **`synthetic_rates`** — parametric: `flow_rate_distribution`
@@ -128,16 +136,59 @@ Each flow has a 5-tuple and a pre-computed timeline
 
 Flow's RSS bucket is the real Toeplitz hash of its 5-tuple.
 
-## Schedulers
+### Realism checklist in `summary.json`
 
-### Stateless (Algorithm 2, committed directly in HW)
+Every run emits a `workload_realism` block with per-class
+`target_gbps`, `realized_gbps`, `rate_error_fraction`, and a
+`warn_rate_mismatch` flag (true when |error| > 5%). Use this to spot
+configs where `n_flows` is too small to support the requested `gbps`
+under the class's CDF.
 
-| scheduler_type | behaviour |
-|---|---|
-| `static` | baseline; RSS never changes |
-| `ewma_greedy` | `H_q = α·P_q + (1-α)·R̂_q`; greedy reassignment gated by the paper's fit condition (tolerance set via `fit_condition_tolerance`) |
-| `reactive_greedy` | ablation: `α = 1` (no predictor) |
-| `reactive_oneshot` | ablation: threshold-only, move heaviest bucket of each hot queue to coldest queue (no fit-condition check, no iterative refresh) |
+## Scheduling
+
+### Dual-epoch control
+
+The simulator tracks **independent epoch counters per domain**. The
+stateless scheduler typically wants short epochs (fast reaction to
+microbursts, ~50 µs); the stateful scheduler wants longer epochs
+(handoffs are expensive, so we amortize over ~1 ms). Configure via:
+
+```yaml
+time:
+  delta_bin_ns: 10000            # telemetry bin = 10 µs
+  stateless_epoch_bins: 5        # stateless epoch = 50 µs
+  stateful_epoch_bins: 100       # stateful epoch = 1 ms
+  num_epochs: 500                # total stateless epochs in the run
+```
+
+Stateful handoff penalty normalization uses `stateful_epoch_bins`, so
+changing the stateless cadence does not bias stateful gain calculation.
+
+### Stateless scheduler matrix
+
+Two orthogonal axes:
+
+* **signal**: `qp` (pressure `P_q` only) | `pred` (predictor output only) |
+  `pred_qp` (weighted blend `α·P_q + (1-α)·R̂_q`)
+* **policy**: `greedy` (paper's Algorithm 2 — iterative, fit-condition
+  gated) | `oneshot` (single pass, move heaviest bucket of each hot
+  queue to currently coldest queue, no gate)
+
+Canonical names are `{signal}_{policy}`:
+
+| scheduler_type | signal | policy |
+|---|---|---|
+| `static` | — | no reassignments |
+| `qp_oneshot` | `P_q` only | oneshot |
+| `qp_greedy` | `P_q` only | greedy (Alg 2) |
+| `pred_oneshot` | predictor only | oneshot |
+| `pred_greedy` | predictor only | greedy (Alg 2) |
+| `pred_qp_oneshot` | blend | oneshot |
+| `pred_qp_greedy` | blend | greedy (Alg 2, the paper's canonical) |
+
+Legacy names `ewma_greedy` → `pred_qp_greedy`, `reactive_greedy` →
+`qp_greedy`, `reactive_oneshot` → `qp_oneshot`, `proposed` →
+`pred_qp_greedy` are accepted as aliases.
 
 ### Stateful (Algorithm 3, host-coordinated handoff)
 
@@ -158,14 +209,60 @@ Only `proposed` or `static`. The proposed path:
 Each phase is modeled as an independent Gaussian sample; total handoff
 latency is the sum. EWMA of realised totals feeds the penalty term.
 
+## Evaluation methodology: two phases
+
+Algorithm evaluation runs in two phases so that scheduler gains are
+first attributed cleanly, then stress-tested under realistic
+coexistence:
+
+1. **Phase 1 - Isolated-domain evaluation (primary)**: run one domain
+   at a time with the other domain fully **disabled**. The disabled
+   side generates no packets, owns no pipelines, and emits no CSV
+   rows; there is no cross-domain PCIe contention and no interference
+   from the other scheduler. This produces clean attribution of
+   scheduler behaviour for the paper's main claims.
+2. **Phase 2 - Coexistence / realism**: both domains enabled, sharing
+   the PCIe link. One scheduler is the variable under test; the other
+   is held on a canonical baseline. This checks that isolated-phase
+   trends survive cross-domain interference.
+
+Domain isolation is controlled by two YAML flags:
+
+```yaml
+experiment:
+  enable_stateless: true   # phase-1 stateless-only sets this true,
+                           # stateful-only sets this false
+  enable_stateful:  false  # and vice versa
+```
+
 ## Run
 
 ```bash
 pip install -r requirements.txt
 
-python3 scripts/run_single.py --config configs/ewma_greedy.yaml
-python3 scripts/run_comparison.py --configs-dir configs --out results/comparison
+# One config:
+python3 scripts/run_single.py --config configs/stateless/pred_qp_greedy.yaml
+
+# ---- Phase 1: isolated-domain evaluation (primary) ----
+# Stateless matrix (7 variants); stateful domain fully disabled:
+python3 scripts/run_comparison.py --suite stateless_only
+# Stateful pair (static vs proposed); stateless domain fully disabled:
+python3 scripts/run_comparison.py --suite stateful_only
+
+# ---- Phase 2: coexistence / realism ----
+# Stateless suite; both domains live, stateful held static:
+python3 scripts/run_comparison.py --suite stateless
+# Stateful suite; both domains live, stateless held on pred_qp_greedy:
+python3 scripts/run_comparison.py --suite stateful
+
+# Regenerate all four per-experiment YAML directories from the shared
+# base in scripts/gen_configs.py (edit once, propagate to every
+# phase/variant):
+python3 scripts/gen_configs.py
 ```
+
+Outputs land in `results/comparison_{stateless,stateful}_only` for
+phase 1 and `results/comparison_{stateless,stateful}` for phase 2.
 
 ## Key knobs for the three layers
 
@@ -225,6 +322,11 @@ do not affect the scheduling algorithm's behaviour:
 ## Layout
 
 ```
+configs/
+  stateless_only/    # phase-1 stateless matrix (stateful disabled)
+  stateful_only/     # phase-1 stateful pair   (stateless disabled)
+  stateless/         # phase-2 stateless matrix (both domains live)
+  stateful/          # phase-2 stateful pair    (both domains live)
 src/
   config.py          # dataclass + YAML loader (all user-tunable params)
   hashing.py         # Toeplitz 5-tuple hash

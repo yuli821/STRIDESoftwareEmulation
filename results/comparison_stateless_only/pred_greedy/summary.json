@@ -1,0 +1,81 @@
+{
+  "enabled_domains": {
+    "stateless": true,
+    "stateful": false
+  },
+  "epochs": {
+    "stateless_epoch_bins": 3,
+    "stateful_epoch_bins": 100,
+    "delta_bin_ns": 10000.0,
+    "stateless_epoch_ns": 30000.0,
+    "stateful_epoch_ns": 1000000.0
+  },
+  "workload_realism": {
+    "stateless": [
+      {
+        "domain": "stateless",
+        "kind": "cache",
+        "n_flows": 500,
+        "target_gbps": 18.0,
+        "realized_gbps_before": 25.86442494237167,
+        "realized_gbps": 17.914868672342088,
+        "total_packets": 236215,
+        "mean_pkt_bytes": 142.20257392629597,
+        "rate_error_fraction": -0.004729518203217332,
+        "warn_rate_mismatch": false
+      },
+      {
+        "domain": "stateless",
+        "kind": "web",
+        "n_flows": 400,
+        "target_gbps": 13.0,
+        "realized_gbps_before": 63.537006430866235,
+        "realized_gbps": 12.780661014622599,
+        "total_packets": 56006,
+        "mean_pkt_bytes": 427.8781023461772,
+        "rate_error_fraction": -0.0168722296444155,
+        "warn_rate_mismatch": false
+      },
+      {
+        "domain": "stateless",
+        "kind": "hadoop",
+        "n_flows": 28,
+        "target_gbps": 25.0,
+        "realized_gbps_before": 18.734258484382767,
+        "realized_gbps": 25.147331656844553,
+        "total_packets": 49027,
+        "mean_pkt_bytes": 961.7404695371938,
+        "rate_error_fraction": 0.005893266273782132,
+        "warn_rate_mismatch": false
+      }
+    ]
+  },
+  "pcie": {
+    "bandwidth_gbps": 128.0,
+    "fifo_bytes": 262144,
+    "total_accept_pkts": 0,
+    "total_pcie_drops_stateless": 0,
+    "total_pcie_drops_stateful": 0
+  },
+  "stateless": {
+    "domain": "stateless",
+    "epochs": 500,
+    "aggregate_B_gen_GB": 0.104705372,
+    "aggregate_B_adm_GB": 0.092738708,
+    "aggregate_B_drop_GB": 0.011966664,
+    "overall_drop_ratio": 0.11428892110712333,
+    "mean_P_max": 0.4468197373562208,
+    "p99_P_max": 0.5619832359790567,
+    "mean_fairness_P": 0.6683806797886132,
+    "mean_imbalance_B": 0.1422439629799967,
+    "total_reassignments": 2,
+    "mean_lat_p50_ns": 690959.8762014442,
+    "mean_lat_p95_ns": 791931.9783235429,
+    "mean_lat_p99_ns": 792727.8626019445,
+    "mean_lat_p999_ns": 793025.7355826447,
+    "mean_lat_max_ns": 793079.3803616219,
+    "worst_lat_p99_ns": 827992.1308573658,
+    "worst_lat_p999_ns": 828187.9846023362,
+    "worst_lat_max_ns": 828256.2872056309
+  }
+}

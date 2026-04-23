@@ -1,35 +1,95 @@
 """Stateless bucket-reassignment schedulers.
 
-Canonical names:
-``ewma_greedy``      : Algorithm 2. H_q = alpha*P_q + (1-alpha)*R_hat.
-                       Greedy move with fit-condition gate + iterative H refresh.
-``reactive_greedy``  : alpha = 1 (uses P_q only). Same greedy loop as above.
-``reactive_oneshot`` : simpler threshold-only reactive baseline -- one pass,
-                       move heaviest bucket of each hot queue to the
-                       currently coolest queue, no fit-condition check.
+Two orthogonal design axes:
 
-Legacy aliases (accepted for backward compatibility):
-``proposed`` -> ``ewma_greedy``
-``current_only`` -> ``reactive_greedy``
-``reactive_no_pred`` -> ``reactive_oneshot``
+* **signal**:  how the scheduler decides which queues are hot.
+    ``qp``      : pressure only  (H = P)
+    ``pred``    : predictor only (H = R_hat)
+    ``pred_qp`` : weighted blend (H = alpha * P + (1 - alpha) * R_hat)
+
+* **policy**:  how moves are executed.
+    ``greedy``  : Algorithm 2 iterative greedy loop:
+                  pick hottest hot, coldest cold, move heaviest bucket
+                  that satisfies the paper's fit condition, refresh
+                  hot/cold sets, repeat until empty or cap reached.
+    ``oneshot`` : single pass:
+                  for each hot queue (in descending H), move its
+                  heaviest bucket to the globally coldest unused queue.
+                  No fit check, no iterative refresh. Cheaper, faster,
+                  but can overshoot destination load.
+
+The concrete scheduler name is ``{signal}_{policy}``. Supported names:
+
+* ``static``            -- no reassignments, baseline.
+* ``qp_oneshot``        -- pressure-only, oneshot
+* ``qp_greedy``         -- pressure-only, greedy
+* ``pred_oneshot``      -- predictor-only, oneshot
+* ``pred_greedy``       -- predictor-only, greedy
+* ``pred_qp_oneshot``   -- blended, oneshot
+* ``pred_qp_greedy``    -- blended, greedy (paper's Algorithm 2)
+
+Backward-compat aliases (accepted in YAML):
+    ewma_greedy       -> pred_qp_greedy
+    reactive_greedy   -> qp_greedy
+    reactive_oneshot  -> qp_oneshot
+    proposed          -> pred_qp_greedy
+    current_only      -> qp_greedy
+    reactive_no_pred  -> qp_oneshot
 """
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Tuple
 import numpy as np
 
 from .base import BaseStatelessScheduler
 from ..config import StatelessSchedulerConfig
 
 
-class GreedyStatelessScheduler(BaseStatelessScheduler):
-    """Realises ``ewma_greedy`` and ``reactive_greedy``."""
+SIGNALS = ("qp", "pred", "pred_qp")
+POLICIES = ("oneshot", "greedy")
 
-    def __init__(self, cfg: StatelessSchedulerConfig, mode: str = "ewma_greedy") -> None:
-        assert mode in ("ewma_greedy", "reactive_greedy")
+
+def parse_scheduler_type(t: str) -> Tuple[str, str]:
+    """Return ``(signal, policy)`` for a canonical ``{signal}_{policy}``
+    name. Raises if unknown."""
+    for pol in POLICIES:
+        suffix = "_" + pol
+        if t.endswith(suffix):
+            signal = t[: -len(suffix)]
+            if signal in SIGNALS:
+                return signal, pol
+    raise ValueError(f"unknown scheduler_type: {t!r}. "
+                     f"Expected {{signal}}_{{policy}} with "
+                     f"signal in {SIGNALS}, policy in {POLICIES}.")
+
+
+def _compute_signal(signal: str, P: np.ndarray, pred_risk: np.ndarray,
+                    alpha_blend: float) -> np.ndarray:
+    if signal == "qp":
+        return P.copy()
+    if signal == "pred":
+        if pred_risk is None or pred_risk.size == 0:
+            return P.copy()
+        return np.clip(pred_risk, 0.0, 1.0)
+    if signal == "pred_qp":
+        if pred_risk is None or pred_risk.size == 0:
+            return P.copy()
+        a = float(alpha_blend)
+        return a * P + (1.0 - a) * pred_risk
+    raise ValueError(f"unknown signal: {signal}")
+
+
+class GreedyStatelessScheduler(BaseStatelessScheduler):
+    """Greedy iterative reassignment (paper's Algorithm 2).
+
+    ``signal`` selects the hotness function; the core loop is the same.
+    """
+
+    def __init__(self, cfg: StatelessSchedulerConfig, signal: str) -> None:
+        assert signal in SIGNALS, signal
         self.cfg = cfg
-        self.mode = mode
-        self.name = mode
+        self.signal = signal
+        self.name = f"{signal}_greedy"
         self.moves_this_epoch = 0
 
     def step(self, epoch, telem, current_table, pred_risk):
@@ -37,11 +97,7 @@ class GreedyStatelessScheduler(BaseStatelessScheduler):
         B_q_gen = telem["B_q_gen"].copy()
         B_b = telem["B_b"].copy()
 
-        if self.mode == "reactive_greedy":
-            H = P.copy()
-        else:
-            a = self.cfg.alpha_blend
-            H = a * P + (1.0 - a) * pred_risk
+        H = _compute_signal(self.signal, P, pred_risk, self.cfg.alpha_blend)
 
         new_table = current_table.copy()
         avg_B = B_q_gen.mean()
@@ -85,24 +141,32 @@ class GreedyStatelessScheduler(BaseStatelessScheduler):
         return new_table
 
 
-class ReactiveNoPredStatelessScheduler(BaseStatelessScheduler):
-    """One pass: for each hot queue, move its heaviest bucket to the
-    currently coldest free queue. No fit check, no iteration."""
+class OneshotStatelessScheduler(BaseStatelessScheduler):
+    """Single-pass threshold reactive scheduler.
 
-    name = "reactive_oneshot"
+    ``signal`` selects the hotness function; for each queue with
+    ``H > tau_hot_s`` (processed in descending H order) we move the
+    heaviest bucket to the globally coolest queue that hasn't been used
+    as destination yet this epoch. No fit-condition check.
+    """
 
-    def __init__(self, cfg: StatelessSchedulerConfig) -> None:
+    def __init__(self, cfg: StatelessSchedulerConfig, signal: str) -> None:
+        assert signal in SIGNALS, signal
         self.cfg = cfg
+        self.signal = signal
+        self.name = f"{signal}_oneshot"
         self.moves_this_epoch = 0
 
     def step(self, epoch, telem, current_table, pred_risk):
         P = telem["P_q"]
         B_b = telem["B_b"]
+        H = _compute_signal(self.signal, P, pred_risk, self.cfg.alpha_blend)
+
         new_table = current_table.copy()
         self.moves_this_epoch = 0
-        hot = np.where(P > self.cfg.tau_hot_s)[0]
+        hot = np.where(H > self.cfg.tau_hot_s)[0]
         used: set[int] = set()
-        for q_src in [int(hot[i]) for i in np.argsort(-P[hot])]:
+        for q_src in [int(hot[i]) for i in np.argsort(-H[hot])]:
             if self.moves_this_epoch >= self.cfg.max_moves_per_epoch:
                 break
             bucket_ids = np.where(new_table == q_src)[0]
@@ -110,7 +174,7 @@ class ReactiveNoPredStatelessScheduler(BaseStatelessScheduler):
                 continue
             b = int(bucket_ids[np.argmax(B_b[bucket_ids])])
             q_dst = None
-            for q in np.argsort(P):
+            for q in np.argsort(H):
                 q = int(q)
                 if q == q_src or q in used:
                     continue
@@ -122,3 +186,22 @@ class ReactiveNoPredStatelessScheduler(BaseStatelessScheduler):
             used.add(q_dst)
             self.moves_this_epoch += 1
         return new_table
+
+
+# ---------------------------------------------------------------------------
+# Aliases for older scheduler names (kept so existing YAMLs keep working).
+# ---------------------------------------------------------------------------
+LEGACY_ALIASES: Dict[str, str] = {
+    # Current-generation (pre-matrix) names
+    "ewma_greedy": "pred_qp_greedy",
+    "reactive_greedy": "qp_greedy",
+    "reactive_oneshot": "qp_oneshot",
+    # Original names from the first iteration
+    "proposed": "pred_qp_greedy",
+    "current_only": "qp_greedy",
+    "reactive_no_pred": "qp_oneshot",
+}
+
+
+def canonicalize(t: str) -> str:
+    return LEGACY_ALIASES.get(t, t)

@@ -1,0 +1,569 @@
+{
+  "pred_greedy": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "cache",
+          "n_flows": 500,
+          "target_gbps": 18.0,
+          "realized_gbps_before": 25.86442494237167,
+          "realized_gbps": 17.914868672342088,
+          "total_packets": 236215,
+          "mean_pkt_bytes": 142.20257392629597,
+          "rate_error_fraction": -0.004729518203217332,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "web",
+          "n_flows": 400,
+          "target_gbps": 13.0,
+          "realized_gbps_before": 63.537006430866235,
+          "realized_gbps": 12.780661014622599,
+          "total_packets": 56006,
+          "mean_pkt_bytes": 427.8781023461772,
+          "rate_error_fraction": -0.0168722296444155,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "hadoop",
+          "n_flows": 28,
+          "target_gbps": 25.0,
+          "realized_gbps_before": 18.734258484382767,
+          "realized_gbps": 25.147331656844553,
+          "total_packets": 49027,
+          "mean_pkt_bytes": 961.7404695371938,
+          "rate_error_fraction": 0.005893266273782132,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.104705372,
+      "aggregate_B_adm_GB": 0.092738708,
+      "aggregate_B_drop_GB": 0.011966664,
+      "overall_drop_ratio": 0.11428892110712333,
+      "mean_P_max": 0.4468197373562208,
+      "p99_P_max": 0.5619832359790567,
+      "mean_fairness_P": 0.6683806797886132,
+      "mean_imbalance_B": 0.1422439629799967,
+      "total_reassignments": 2,
+      "mean_lat_p50_ns": 690959.8762014442,
+      "mean_lat_p95_ns": 791931.9783235429,
+      "mean_lat_p99_ns": 792727.8626019445,
+      "mean_lat_p999_ns": 793025.7355826447,
+      "mean_lat_max_ns": 793079.3803616219,
+      "worst_lat_p99_ns": 827992.1308573658,
+      "worst_lat_p999_ns": 828187.9846023362,
+      "worst_lat_max_ns": 828256.2872056309
+    }
+  },
+  "pred_oneshot": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "cache",
+          "n_flows": 500,
+          "target_gbps": 18.0,
+          "realized_gbps_before": 25.86442494237167,
+          "realized_gbps": 17.914868672342088,
+          "total_packets": 236215,
+          "mean_pkt_bytes": 142.20257392629597,
+          "rate_error_fraction": -0.004729518203217332,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "web",
+          "n_flows": 400,
+          "target_gbps": 13.0,
+          "realized_gbps_before": 63.537006430866235,
+          "realized_gbps": 12.780661014622599,
+          "total_packets": 56006,
+          "mean_pkt_bytes": 427.8781023461772,
+          "rate_error_fraction": -0.0168722296444155,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "hadoop",
+          "n_flows": 28,
+          "target_gbps": 25.0,
+          "realized_gbps_before": 18.734258484382767,
+          "realized_gbps": 25.147331656844553,
+          "total_packets": 49027,
+          "mean_pkt_bytes": 961.7404695371938,
+          "rate_error_fraction": 0.005893266273782132,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.104705372,
+      "aggregate_B_adm_GB": 0.090336477,
+      "aggregate_B_drop_GB": 0.014368895,
+      "overall_drop_ratio": 0.13723168855175835,
+      "mean_P_max": 0.45293942529032666,
+      "p99_P_max": 0.5570139851197268,
+      "mean_fairness_P": 0.6830469826515694,
+      "mean_imbalance_B": 0.1884162972175102,
+      "total_reassignments": 3,
+      "mean_lat_p50_ns": 692566.5362430286,
+      "mean_lat_p95_ns": 791678.1188558731,
+      "mean_lat_p99_ns": 792455.9364778601,
+      "mean_lat_p999_ns": 792746.1276297483,
+      "mean_lat_max_ns": 792796.2054996555,
+      "worst_lat_p99_ns": 826268.4469092056,
+      "worst_lat_p999_ns": 826446.7203447614,
+      "worst_lat_max_ns": 826485.5840705056
+    }
+  },
+  "pred_qp_greedy": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "cache",
+          "n_flows": 500,
+          "target_gbps": 18.0,
+          "realized_gbps_before": 25.86442494237167,
+          "realized_gbps": 17.914868672342088,
+          "total_packets": 236215,
+          "mean_pkt_bytes": 142.20257392629597,
+          "rate_error_fraction": -0.004729518203217332,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "web",
+          "n_flows": 400,
+          "target_gbps": 13.0,
+          "realized_gbps_before": 63.537006430866235,
+          "realized_gbps": 12.780661014622599,
+          "total_packets": 56006,
+          "mean_pkt_bytes": 427.8781023461772,
+          "rate_error_fraction": -0.0168722296444155,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "hadoop",
+          "n_flows": 28,
+          "target_gbps": 25.0,
+          "realized_gbps_before": 18.734258484382767,
+          "realized_gbps": 25.147331656844553,
+          "total_packets": 49027,
+          "mean_pkt_bytes": 961.7404695371938,
+          "rate_error_fraction": 0.005893266273782132,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.104705372,
+      "aggregate_B_adm_GB": 0.096428585,
+      "aggregate_B_drop_GB": 0.008276787,
+      "overall_drop_ratio": 0.07904835102443454,
+      "mean_P_max": 0.3852641779072708,
+      "p99_P_max": 0.5264336108130515,
+      "mean_fairness_P": 0.8887287487048552,
+      "mean_imbalance_B": 0.1459942962522338,
+      "total_reassignments": 28,
+      "mean_lat_p50_ns": 668108.3035744147,
+      "mean_lat_p95_ns": 784212.0386741727,
+      "mean_lat_p99_ns": 785300.3401475678,
+      "mean_lat_p999_ns": 785708.0675531597,
+      "mean_lat_max_ns": 785773.0983891292,
+      "worst_lat_p99_ns": 824608.2936092808,
+      "worst_lat_p999_ns": 824943.1354183585,
+      "worst_lat_max_ns": 824983.3299971819
+    }
+  },
+  "pred_qp_oneshot": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "cache",
+          "n_flows": 500,
+          "target_gbps": 18.0,
+          "realized_gbps_before": 25.86442494237167,
+          "realized_gbps": 17.914868672342088,
+          "total_packets": 236215,
+          "mean_pkt_bytes": 142.20257392629597,
+          "rate_error_fraction": -0.004729518203217332,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "web",
+          "n_flows": 400,
+          "target_gbps": 13.0,
+          "realized_gbps_before": 63.537006430866235,
+          "realized_gbps": 12.780661014622599,
+          "total_packets": 56006,
+          "mean_pkt_bytes": 427.8781023461772,
+          "rate_error_fraction": -0.0168722296444155,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "hadoop",
+          "n_flows": 28,
+          "target_gbps": 25.0,
+          "realized_gbps_before": 18.734258484382767,
+          "realized_gbps": 25.147331656844553,
+          "total_packets": 49027,
+          "mean_pkt_bytes": 961.7404695371938,
+          "rate_error_fraction": 0.005893266273782132,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.104705372,
+      "aggregate_B_adm_GB": 0.096193862,
+      "aggregate_B_drop_GB": 0.00851151,
+      "overall_drop_ratio": 0.08129009846791815,
+      "mean_P_max": 0.3792620507767848,
+      "p99_P_max": 0.5063959805149544,
+      "mean_fairness_P": 0.8980135324692449,
+      "mean_imbalance_B": 0.15647534759994403,
+      "total_reassignments": 779,
+      "mean_lat_p50_ns": 661844.6209821432,
+      "mean_lat_p95_ns": 789190.3056544511,
+      "mean_lat_p99_ns": 790298.7688030223,
+      "mean_lat_p999_ns": 790714.8992363183,
+      "mean_lat_max_ns": 790786.1145743803,
+      "worst_lat_p99_ns": 825537.823554918,
+      "worst_lat_p999_ns": 825800.0838061025,
+      "worst_lat_max_ns": 825808.5319254156
+    }
+  },
+  "qp_greedy": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "cache",
+          "n_flows": 500,
+          "target_gbps": 18.0,
+          "realized_gbps_before": 25.86442494237167,
+          "realized_gbps": 17.914868672342088,
+          "total_packets": 236215,
+          "mean_pkt_bytes": 142.20257392629597,
+          "rate_error_fraction": -0.004729518203217332,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "web",
+          "n_flows": 400,
+          "target_gbps": 13.0,
+          "realized_gbps_before": 63.537006430866235,
+          "realized_gbps": 12.780661014622599,
+          "total_packets": 56006,
+          "mean_pkt_bytes": 427.8781023461772,
+          "rate_error_fraction": -0.0168722296444155,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "hadoop",
+          "n_flows": 28,
+          "target_gbps": 25.0,
+          "realized_gbps_before": 18.734258484382767,
+          "realized_gbps": 25.147331656844553,
+          "total_packets": 49027,
+          "mean_pkt_bytes": 961.7404695371938,
+          "rate_error_fraction": 0.005893266273782132,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.104705372,
+      "aggregate_B_adm_GB": 0.096141905,
+      "aggregate_B_drop_GB": 0.008563467,
+      "overall_drop_ratio": 0.081786319425903,
+      "mean_P_max": 0.38054724207684454,
+      "p99_P_max": 0.5184959389726276,
+      "mean_fairness_P": 0.8838806460852886,
+      "mean_imbalance_B": 0.14392541392033406,
+      "total_reassignments": 25,
+      "mean_lat_p50_ns": 667623.0115562818,
+      "mean_lat_p95_ns": 775299.19121447,
+      "mean_lat_p99_ns": 776438.2296556392,
+      "mean_lat_p999_ns": 776880.9391606703,
+      "mean_lat_max_ns": 776955.4869691666,
+      "worst_lat_p99_ns": 825760.3913795549,
+      "worst_lat_p999_ns": 825993.4828788053,
+      "worst_lat_max_ns": 826036.7381483484
+    }
+  },
+  "qp_oneshot": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "cache",
+          "n_flows": 500,
+          "target_gbps": 18.0,
+          "realized_gbps_before": 25.86442494237167,
+          "realized_gbps": 17.914868672342088,
+          "total_packets": 236215,
+          "mean_pkt_bytes": 142.20257392629597,
+          "rate_error_fraction": -0.004729518203217332,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "web",
+          "n_flows": 400,
+          "target_gbps": 13.0,
+          "realized_gbps_before": 63.537006430866235,
+          "realized_gbps": 12.780661014622599,
+          "total_packets": 56006,
+          "mean_pkt_bytes": 427.8781023461772,
+          "rate_error_fraction": -0.0168722296444155,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "hadoop",
+          "n_flows": 28,
+          "target_gbps": 25.0,
+          "realized_gbps_before": 18.734258484382767,
+          "realized_gbps": 25.147331656844553,
+          "total_packets": 49027,
+          "mean_pkt_bytes": 961.7404695371938,
+          "rate_error_fraction": 0.005893266273782132,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.104705372,
+      "aggregate_B_adm_GB": 0.096262438,
+      "aggregate_B_drop_GB": 0.008442934,
+      "overall_drop_ratio": 0.0806351559497826,
+      "mean_P_max": 0.38216674067477135,
+      "p99_P_max": 0.5399399086715102,
+      "mean_fairness_P": 0.8894756962726813,
+      "mean_imbalance_B": 0.17808600923848428,
+      "total_reassignments": 1212,
+      "mean_lat_p50_ns": 661378.7690517693,
+      "mean_lat_p95_ns": 786904.1068465428,
+      "mean_lat_p99_ns": 788087.8525766112,
+      "mean_lat_p999_ns": 788528.5035589336,
+      "mean_lat_max_ns": 788595.9742723568,
+      "worst_lat_p99_ns": 825828.5017247684,
+      "worst_lat_p999_ns": 826574.11112005,
+      "worst_lat_max_ns": 826641.3308948288
+    }
+  },
+  "static": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "cache",
+          "n_flows": 500,
+          "target_gbps": 18.0,
+          "realized_gbps_before": 25.86442494237167,
+          "realized_gbps": 17.914868672342088,
+          "total_packets": 236215,
+          "mean_pkt_bytes": 142.20257392629597,
+          "rate_error_fraction": -0.004729518203217332,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "web",
+          "n_flows": 400,
+          "target_gbps": 13.0,
+          "realized_gbps_before": 63.537006430866235,
+          "realized_gbps": 12.780661014622599,
+          "total_packets": 56006,
+          "mean_pkt_bytes": 427.8781023461772,
+          "rate_error_fraction": -0.0168722296444155,
+          "warn_rate_mismatch": false
+        },
+        {
+          "domain": "stateless",
+          "kind": "hadoop",
+          "n_flows": 28,
+          "target_gbps": 25.0,
+          "realized_gbps_before": 18.734258484382767,
+          "realized_gbps": 25.147331656844553,
+          "total_packets": 49027,
+          "mean_pkt_bytes": 961.7404695371938,
+          "rate_error_fraction": 0.005893266273782132,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 500,
+      "aggregate_B_gen_GB": 0.104705372,
+      "aggregate_B_adm_GB": 0.089132151,
+      "aggregate_B_drop_GB": 0.015573221,
+      "overall_drop_ratio": 0.14873373450218008,
+      "mean_P_max": 0.49290847307588764,
+      "p99_P_max": 0.6005551487726783,
+      "mean_fairness_P": 0.6540339474793032,
+      "mean_imbalance_B": 0.20057218008187003,
+      "total_reassignments": 0,
+      "mean_lat_p50_ns": 691539.8229758396,
+      "mean_lat_p95_ns": 791652.059811602,
+      "mean_lat_p99_ns": 792413.6796220295,
+      "mean_lat_p999_ns": 792701.3500789969,
+      "mean_lat_max_ns": 792749.6905085677,
+      "worst_lat_p99_ns": 826696.8443355547,
+      "worst_lat_p999_ns": 826963.4209904223,
+      "worst_lat_max_ns": 827007.4455333017
+    }
+  }
+}

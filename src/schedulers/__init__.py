@@ -9,27 +9,22 @@ from ..handoff import HandoffManager
 from .base import BaseStatelessScheduler, BaseStatefulScheduler
 from .static_sched import StaticStatelessScheduler, StaticStatefulScheduler
 from .stateless_proposed import (GreedyStatelessScheduler,
-                                 ReactiveNoPredStatelessScheduler)
+                                 OneshotStatelessScheduler,
+                                 canonicalize, parse_scheduler_type)
 from .stateful_proposed import ReactiveStatefulScheduler
 
 
 def make_stateless_scheduler(cfg: StatelessSchedulerConfig
                              ) -> BaseStatelessScheduler:
-    t = cfg.scheduler_type
-    # Backward-compatible aliases for older experiment names.
-    alias = {
-        "proposed": "ewma_greedy",
-        "current_only": "reactive_greedy",
-        "reactive_no_pred": "reactive_oneshot",
-    }
-    t = alias.get(t, t)
+    t = canonicalize(cfg.scheduler_type)
     if t == "static":
         return StaticStatelessScheduler()
-    if t in ("ewma_greedy", "reactive_greedy"):
-        return GreedyStatelessScheduler(cfg, mode=t)
-    if t == "reactive_oneshot":
-        return ReactiveNoPredStatelessScheduler(cfg)
-    raise ValueError(f"unknown stateless scheduler_type: {t}")
+    signal, policy = parse_scheduler_type(t)
+    if policy == "greedy":
+        return GreedyStatelessScheduler(cfg, signal=signal)
+    if policy == "oneshot":
+        return OneshotStatelessScheduler(cfg, signal=signal)
+    raise ValueError(f"unsupported scheduler_type: {cfg.scheduler_type!r}")
 
 
 def make_stateful_scheduler(cfg: StatefulSchedulerConfig,

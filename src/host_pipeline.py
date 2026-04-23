@@ -82,6 +82,13 @@ class QueuePipelineStats:
       * pcie_drop_*   : FPGA egress FIFO full (PCIe link saturated).
     The ``drop_pkts`` / ``drop_bytes`` aggregates both so that telemetry's
     P_q computation (via L_q = drops / gen) sees total loss.
+
+    ``latency_samples_ns`` is the per-bin list of end-to-end packet
+    latencies (in nanoseconds) for packets that were admitted in this
+    bin. Latency is measured from the moment the FPGA generates the
+    packet (``t_gen``) to the moment the host core finishes processing
+    it (``t_service_end``). The sim aggregates these per epoch and
+    computes p50/p95/p99/p99.9/max/mean for tail-latency reporting.
     """
     adm_pkts: int = 0
     adm_bytes: float = 0.0
@@ -94,6 +101,7 @@ class QueuePipelineStats:
     credits_returned: int = 0
     u_sum: float = 0.0       # for time-average occupancy if desired
     u_max: int = 0
+    latency_samples_ns: list = field(default_factory=list)
 
     def reset(self) -> None:
         self.adm_pkts = 0
@@ -107,6 +115,7 @@ class QueuePipelineStats:
         self.credits_returned = 0
         self.u_sum = 0.0
         self.u_max = 0
+        self.latency_samples_ns = []
 
 
 @dataclass
@@ -197,6 +206,11 @@ class QueuePipeline:
 
         self.stats.adm_pkts += 1
         self.stats.adm_bytes += float(size_bytes)
+        # End-to-end per-packet latency: from FPGA generation to core
+        # finishing processing. Includes PCIe serialization, ring wait,
+        # and core service (which inflates under contention -> the
+        # canonical tail-latency signal).
+        self.stats.latency_samples_ns.append(float(t_service_end) - float(t_gen_ns))
         return True
 
     def record_pcie_drop(self, size_bytes: int) -> None:

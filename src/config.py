@@ -18,12 +18,28 @@ import yaml
 class TimeConfig:
     clk_period_ns: float = 4.0              # FPGA clock (250 MHz)
     delta_bin_ns: float = 10_000.0          # telemetry bin delta
-    H_bins_per_epoch: int = 10              # H bins per epoch
-    num_epochs: int = 1000                  # simulation horizon in epochs
+    H_bins_per_epoch: int = 10              # default per-domain epoch length
+    num_epochs: int = 1000                  # simulation horizon in stateless epochs
+
+    # Per-domain epoch bins. If 0, fall back to H_bins_per_epoch.
+    # Stateless schedulers typically want short epochs to react quickly
+    # (e.g. 5-10 bins = 50-100 us). Stateful schedulers have much higher
+    # per-handoff cost, so they benefit from longer epochs (e.g. 50-200
+    # bins = 500 us - 2 ms) to avoid thrashing.
+    stateless_epoch_bins: int = 0
+    stateful_epoch_bins: int = 0
 
     @property
     def epoch_ns(self) -> float:
         return self.delta_bin_ns * self.H_bins_per_epoch
+
+    def stateless_epoch_ns(self) -> float:
+        H = self.stateless_epoch_bins or self.H_bins_per_epoch
+        return self.delta_bin_ns * H
+
+    def stateful_epoch_ns(self) -> float:
+        H = self.stateful_epoch_bins or self.H_bins_per_epoch
+        return self.delta_bin_ns * H
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +80,12 @@ class TopologyConfig:
 # ---------------------------------------------------------------------------
 @dataclass
 class WorkloadConfig:
-    source: str = "trace_mix"   # trace_mix | trace_csv | synthetic_rates
+    # imc17_cdf    : per-flow generator driven by digitized CDFs from
+    #                Zhang et al. IMC'17 (web / cache / hadoop). Preferred.
+    # trace_mix    : legacy hand-tuned generators for web/cache/hadoop.
+    # trace_csv    : load packet traces from CSV.
+    # synthetic_rates: zipf / heavy-hitter / uniform rate dist + cbr/onoff.
+    source: str = "imc17_cdf"   # imc17_cdf | trace_mix | trace_csv | synthetic_rates
 
     # ----- trace_csv path -----
     trace_file_stateless: Optional[str] = None
@@ -215,8 +236,36 @@ class PredictorConfig:
 # ---------------------------------------------------------------------------
 @dataclass
 class StatelessSchedulerConfig:
-    scheduler_type: str = "ewma_greedy"   # static | ewma_greedy | reactive_greedy | reactive_oneshot
-    alpha_blend: float = 0.5
+    """Stateless scheduler selection along two orthogonal axes:
+
+    * **signal**:  ``qp`` (pressure only), ``pred`` (predictor only),
+                   ``pred_qp`` (weighted blend of predictor + pressure)
+    * **policy**:  ``greedy`` (Algorithm 2 iterative greedy loop with
+                   fit-condition gate) or ``oneshot`` (single pass,
+                   move heaviest bucket of each hot queue to current
+                   coldest queue, no fit-condition gate)
+
+    Canonical names are ``{signal}_{policy}``:
+      - static             (no scheduler)
+      - qp_oneshot         pressure only, oneshot
+      - qp_greedy          pressure only, greedy
+      - pred_oneshot       predictor only, oneshot
+      - pred_greedy        predictor only, greedy
+      - pred_qp_oneshot    blend, oneshot
+      - pred_qp_greedy     blend, greedy  (paper's Algorithm 2)
+
+    Backward-compatible aliases:
+      - ewma_greedy         -> pred_qp_greedy
+      - reactive_greedy     -> qp_greedy
+      - reactive_oneshot    -> qp_oneshot
+      - proposed            -> pred_qp_greedy
+      - current_only        -> qp_greedy
+      - reactive_no_pred    -> qp_oneshot
+    """
+    scheduler_type: str = "pred_qp_greedy"
+    # Weight on P_q when blending with predictor. H = alpha*P + (1-alpha)*R.
+    # Only used when scheduler_type includes both ``pred`` and ``qp``.
+    alpha_blend: float = 0.8
     tau_hot_s: float = 0.55
     tau_cold_s: float = 0.25
     # Tolerance for the "fit condition" in Algorithm 2: a candidate move of
@@ -286,6 +335,19 @@ class ExperimentConfig:
     log_time_series: bool = True
     log_per_bucket_trace: bool = True
     make_plots: bool = True
+
+    # Domain-isolation switches. The algorithm-evaluation methodology runs
+    # in two phases:
+    #   Phase 1 (isolation): run one domain at a time with the other fully
+    #     disabled. Traces, pipelines, schedulers, and telemetry for the
+    #     disabled side are skipped so there is no cross-domain
+    #     interference on the shared PCIe link or in the output logs.
+    #   Phase 2 (coexistence): both domains enabled, sharing the PCIe
+    #     link, to verify realism under interference.
+    # Setting ``enable_stateless: false`` (resp. ``enable_stateful``) makes
+    # the simulator behave as a single-domain run for that side only.
+    enable_stateless: bool = True
+    enable_stateful: bool = True
 
 
 # ---------------------------------------------------------------------------

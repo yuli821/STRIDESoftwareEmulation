@@ -26,6 +26,7 @@ def plot_run(outdir: str) -> None:
         _plot_drops(df, outdir, domain)
         _plot_fairness(df, outdir, domain)
         _plot_reassign(df, outdir, domain)
+        _plot_tail_latency(df, outdir, domain)
 
 
 def _plot_pressure(df, outdir, domain):
@@ -59,6 +60,32 @@ def _plot_fairness(df, outdir, domain):
     ax.set_xlabel("epoch"); ax.set_ylabel("value")
     ax.set_title(f"{domain} balance metrics"); ax.legend()
     fig.tight_layout(); fig.savefig(os.path.join(outdir, f"balance_{domain}.png"), dpi=120)
+    plt.close(fig)
+
+
+def _plot_tail_latency(df, outdir, domain):
+    """Per-epoch tail latency curves (p50 / p95 / p99 / p99.9 / max)
+    in microseconds. Skip if no latency columns (e.g. legacy runs)."""
+    cols = [c for c in ("lat_p50_ns", "lat_p95_ns", "lat_p99_ns",
+                        "lat_p999_ns", "lat_max_ns")
+            if c in df.columns]
+    if not cols:
+        return
+    fig, ax = plt.subplots(figsize=(8, 4))
+    label_map = {
+        "lat_p50_ns": "p50",
+        "lat_p95_ns": "p95",
+        "lat_p99_ns": "p99",
+        "lat_p999_ns": "p99.9",
+        "lat_max_ns": "max",
+    }
+    for c in cols:
+        ax.plot(df["epoch"], df[c] / 1e3, label=label_map[c], alpha=0.9)
+    ax.set_xlabel("epoch"); ax.set_ylabel("latency (us)")
+    ax.set_title(f"{domain} end-to-end latency tail"); ax.legend()
+    ax.set_yscale("log")
+    fig.tight_layout()
+    fig.savefig(os.path.join(outdir, f"latency_{domain}.png"), dpi=120)
     plt.close(fig)
 
 
@@ -106,4 +133,27 @@ def plot_comparison(runs: Dict[str, str], outdir: str,
         ax.set_title(f"{domain} {title}: experiment comparison"); ax.legend()
         fig.tight_layout()
         fig.savefig(os.path.join(outdir, f"compare_{metric}_{domain}.png"), dpi=120)
+        plt.close(fig)
+
+    # Tail-latency overlay (log-y, microseconds). One subplot per
+    # quantile of interest so curves don't obscure one another.
+    for metric, title in [
+        ("lat_p50_ns", "p50 latency"),
+        ("lat_p99_ns", "p99 latency"),
+        ("lat_p999_ns", "p99.9 latency"),
+        ("lat_max_ns", "max latency"),
+    ]:
+        if not any(metric in df.columns for df in dfs.values()):
+            continue
+        fig, ax = plt.subplots(figsize=(9, 4))
+        for name, df in dfs.items():
+            if metric in df.columns:
+                ax.plot(df["epoch"], df[metric] / 1e3, label=name, alpha=0.85)
+        ax.set_xlabel("epoch"); ax.set_ylabel("latency (us)")
+        ax.set_yscale("log")
+        ax.set_title(f"{domain} {title}: experiment comparison")
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(os.path.join(outdir,
+                                 f"compare_{metric}_{domain}.png"), dpi=120)
         plt.close(fig)

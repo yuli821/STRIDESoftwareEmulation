@@ -1,0 +1,71 @@
+{
+  "enabled_domains": {
+    "stateless": false,
+    "stateful": true
+  },
+  "epochs": {
+    "stateless_epoch_bins": 5,
+    "stateful_epoch_bins": 100,
+    "delta_bin_ns": 10000.0,
+    "stateless_epoch_ns": 50000.0,
+    "stateful_epoch_ns": 1000000.0
+  },
+  "workload_realism": {
+    "stateful": [
+      {
+        "domain": "stateful",
+        "kind": "web",
+        "n_flows": 240,
+        "target_gbps": 11.0,
+        "realized_gbps_before": 35.39097589721804,
+        "realized_gbps": 10.910823354178353,
+        "total_packets": 1598805,
+        "mean_pkt_bytes": 426.5225971897761,
+        "rate_error_fraction": -0.008106967801967907,
+        "warn_rate_mismatch": false
+      },
+      {
+        "domain": "stateful",
+        "kind": "hadoop",
+        "n_flows": 18,
+        "target_gbps": 10.0,
+        "realized_gbps_before": 9.449047853101902,
+        "realized_gbps": 9.96235982007528,
+        "total_packets": 646668,
+        "mean_pkt_bytes": 962.8549580310143,
+        "rate_error_fraction": -0.003764017992472013,
+        "warn_rate_mismatch": false
+      }
+    ]
+  },
+  "pcie": {
+    "bandwidth_gbps": 128.0,
+    "fifo_bytes": 262144,
+    "total_accept_pkts": 1802438,
+    "total_pcie_drops_stateless": 0,
+    "total_pcie_drops_stateful": 0
+  },
+  "stateful": {
+    "domain": "stateful",
+    "epochs": 500,
+    "aggregate_B_gen_GB": 1.304573951,
+    "aggregate_B_adm_GB": 1.046329998,
+    "aggregate_B_drop_GB": 0.258243953,
+    "overall_drop_ratio": 0.1979527130693107,
+    "mean_P_max": 0.5209406696573792,
+    "p99_P_max": 0.58340812433025,
+    "mean_fairness_P": 0.6535803064736037,
+    "mean_imbalance_B": 0.2146858220726134,
+    "total_reassignments": 0,
+    "mean_lat_p50_ns": 3974856.462005305,
+    "mean_lat_p95_ns": 4255297.058636353,
+    "mean_lat_p99_ns": 4262398.83144243,
+    "mean_lat_p999_ns": 4265460.496233772,
+    "mean_lat_max_ns": 4266481.973157463,
+    "worst_lat_p99_ns": 4331998.055291014,
+    "worst_lat_p999_ns": 4333849.666523523,
+    "worst_lat_max_ns": 4334301.809216082
+  },
+  "handoffs_total": 0,
+  "handoffs_mean_latency_ns": 0.0
+}

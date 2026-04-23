@@ -67,6 +67,17 @@ class DomainMetricsLog:
             "P_q_std": float(P.std()),
             "fairness_P": fairness(np.clip(P, 1e-6, None)),
             "imbalance_B": imbalance(telem["B_q_gen"]),
+            # End-to-end per-packet latency tail summary for this epoch.
+            # Measured from FPGA generation to host core service end;
+            # trends matter more than absolute numbers per project
+            # scope.
+            "lat_n": int(telem.get("lat_n", 0)),
+            "lat_mean_ns": float(telem.get("lat_mean_ns", 0.0)),
+            "lat_p50_ns": float(telem.get("lat_p50_ns", 0.0)),
+            "lat_p95_ns": float(telem.get("lat_p95_ns", 0.0)),
+            "lat_p99_ns": float(telem.get("lat_p99_ns", 0.0)),
+            "lat_p999_ns": float(telem.get("lat_p999_ns", 0.0)),
+            "lat_max_ns": float(telem.get("lat_max_ns", 0.0)),
         }
         row.update(extra)
         for q in range(P.size):
@@ -99,6 +110,13 @@ class DomainMetricsLog:
         df = pd.DataFrame(self.rows)
         if df.empty:
             return {}
+        # Tail-latency summary across epochs: we both average the per-
+        # epoch quantiles (average tail behavior) and report the global
+        # max over all epochs (absolute worst-case observed).
+        def _mean(col):
+            return (float(df[col].mean()) if col in df.columns else 0.0)
+        def _max(col):
+            return (float(df[col].max()) if col in df.columns else 0.0)
         return {
             "domain": self.name,
             "epochs": int(df.shape[0]),
@@ -112,6 +130,14 @@ class DomainMetricsLog:
             "mean_fairness_P": float(df["fairness_P"].mean()),
             "mean_imbalance_B": float(df["imbalance_B"].mean()),
             "total_reassignments": int(sum(self.reassign_counts)),
+            "mean_lat_p50_ns": _mean("lat_p50_ns"),
+            "mean_lat_p95_ns": _mean("lat_p95_ns"),
+            "mean_lat_p99_ns": _mean("lat_p99_ns"),
+            "mean_lat_p999_ns": _mean("lat_p999_ns"),
+            "mean_lat_max_ns": _mean("lat_max_ns"),
+            "worst_lat_p99_ns": _max("lat_p99_ns"),
+            "worst_lat_p999_ns": _max("lat_p999_ns"),
+            "worst_lat_max_ns": _max("lat_max_ns"),
         }
 
 
