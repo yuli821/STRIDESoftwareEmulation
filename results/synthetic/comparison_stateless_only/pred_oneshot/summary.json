@@ -1,0 +1,66 @@
+{
+  "enabled_domains": {
+    "stateless": true,
+    "stateful": false
+  },
+  "epochs": {
+    "stateless_epoch_bins": 3,
+    "stateful_epoch_bins": 100,
+    "delta_bin_ns": 10000.0,
+    "stateless_epoch_ns": 30000.0,
+    "stateful_epoch_ns": 1000000.0
+  },
+  "workload_realism": {
+    "stateless": [
+      {
+        "domain": "stateless",
+        "kind": "synthetic_sustained",
+        "source": "synthetic_sustained",
+        "n_flows": 1289,
+        "n_elephants": 32,
+        "n_mice": 1260,
+        "target_gbps": 33.263064429739906,
+        "realized_gbps_before": null,
+        "realized_gbps": 33.00079944998667,
+        "total_packets": 165004,
+        "mean_pkt_bytes": 1500.0,
+        "synth_elephant_total_gbps": 30.0,
+        "synth_mice_arrival_rate_per_sec": 20000.0,
+        "synth_mice_mean_flow_bytes": 20000.0,
+        "synth_mice_per_flow_gbps": 0.2,
+        "synth_mice_aggregate_gbps_nominal": 3.263064429739909,
+        "rate_error_fraction": -0.007884570596530693,
+        "warn_rate_mismatch": false
+      }
+    ]
+  },
+  "pcie": {
+    "bandwidth_gbps": 128.0,
+    "fifo_bytes": 262144,
+    "total_accept_pkts": 0,
+    "total_pcie_drops_stateless": 0,
+    "total_pcie_drops_stateful": 0
+  },
+  "stateless": {
+    "domain": "stateless",
+    "epochs": 2000,
+    "aggregate_B_gen_GB": 0.247506,
+    "aggregate_B_adm_GB": 0.247476,
+    "aggregate_B_drop_GB": 3e-05,
+    "overall_drop_ratio": 0.00012120918280768952,
+    "mean_P_max": 0.07044815158438206,
+    "p99_P_max": 0.29414453125,
+    "mean_fairness_P": 0.4706838437734147,
+    "mean_fairness_B": 0.9128702799283829,
+    "mean_imbalance_B": 0.1561073209893078,
+    "total_reassignments": 5,
+    "mean_lat_p50_ns": 9645.664885007613,
+    "mean_lat_p95_ns": 121530.4356758479,
+    "mean_lat_p99_ns": 122867.27140494056,
+    "mean_lat_p999_ns": 123293.41403428298,
+    "mean_lat_max_ns": 123340.89571867771,
+    "worst_lat_p99_ns": 512619.4003445347,
+    "worst_lat_p999_ns": 512930.02155505447,
+    "worst_lat_max_ns": 512964.53502288996
+  }
+}

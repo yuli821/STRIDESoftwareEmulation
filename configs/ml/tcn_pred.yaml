@@ -1,0 +1,150 @@
+# =============================================================================
+# Training recipe for the TCN per-queue hotspot predictor.
+#
+# The TCN takes a causal window of per-queue telemetry
+# (B_q_gen, R_q_peak, K_q, P_q) and predicts P_q at the NEXT stateless
+# epoch -- a learned approximation of the OraclePredictor, used by the
+# scheduler's `pred` / `pred_qp` variants.
+#
+# This file is the single source of truth for every training choice:
+# architecture, loss, optimizer, data pipeline, weight-file layout.
+#
+# Consumed by:
+#   - scripts/gen_tcn_dataset.py  (only the `data:` section)
+#   - scripts/train_tcn.py        (the whole file)
+# =============================================================================
+
+model:
+  # Name of the network architecture registered in src/predictors/tcn.py.
+  arch: tcn
+  # 4 input channels = [B_q_gen, R_q_peak, K_q, P_q] per queue.
+  input_channels: 4
+  # Context window (epochs). MUST match the simulator's
+  # predictor.W_window_epochs at inference time; checked on load.
+  window: 8
+  # Causal conv channels / kernel / number of blocks.
+  channels: 16
+  kernel: 3
+  layers: 2
+  # Training uses a raw-logit head + BCEWithLogitsLoss (stabilized
+  # sigmoid is applied only at inference). Leave false here.
+  sigmoid_head: false
+
+training:
+  # Loss. bce_with_logits is the default because:
+  #   - targets y = P_q(t+1) are bounded in [0, 1] (probability-like),
+  #   - sigmoid + MSE saturates gradients near 0 and 1, and the bulk
+  #     of our samples sit near 0 (idle pressure).
+  #   - PyTorch's BCEWithLogitsLoss is numerically stable.
+  # Switch to "mse" only for ablation.
+  loss: bce_with_logits           # bce_with_logits | mse
+
+  # Per-sample loss weight: w = 1 + k * y.
+  # k=0 → uniform weighting. Set k=4 (or higher) if the trained model
+  # under-predicts hot-queue pressure (long tail of y > 0.2 samples).
+  target_weight_k: 0.0
+
+  # Optimizer. AdamW for decoupled weight decay -> better OOD
+  # generalization on our small net.
+  optimizer: adamw                # adamw | adam | sgd
+  lr: 0.001
+  weight_decay: 0.0001
+  # SGD-only (ignored otherwise).
+  momentum: 0.9
+
+  # LR schedule: cosine decay to 1/100th of peak lr over max_epochs;
+  # 2-epoch linear warmup to avoid early-step blowups when the head
+  # still produces random logits.
+  lr_schedule: cosine             # cosine | plateau | none
+  warmup_epochs: 2
+
+  batch_size: 256
+  max_epochs: 50
+  early_stopping_patience: 5       # epochs with no val-loss improvement
+  seed: 1337                       # torch + numpy RNG
+
+  # Train/val split: held-out BY RUN (not by sample) so all epochs of
+  # a validation run are strictly unseen at training time. This avoids
+  # temporal-leak optimism from a random per-sample split.
+  split_by_run: true
+
+  # Gradient clipping -- cheap insurance against occasional extreme
+  # samples at burst onset (very large B_q_gen or R_q_peak).
+  grad_clip_norm: 5.0
+
+data:
+  # How many stateless epochs to simulate per training run. 500 epochs
+  # at the BASE 30 us stateless epoch = 15 ms of traffic per run, which
+  # is enough to cover multiple HAL Layer-1 rate-update periods (1 ms)
+  # and multiple pattern_shift drift events.
+  num_epochs_stateless: 500
+
+  # We always collect under a STATIC stateless scheduler + a "none"
+  # predictor so the RSS table doesn't move mid-run and no predictor
+  # output leaks into the trace. Stateful domain is disabled.
+  force_scheduler: static
+  force_predictor: none
+
+  # Training workloads. Each entry spawns (RSS × seed) variants below.
+  # `synthetic_sustained` = CBR mice+elephant diagnostic, same generator
+  # as the evaluation synthetic suite but with different seeds/knobs.
+  # `hal_composite` (web + cache, NO hadoop) keeps the realistic
+  # evaluation mix (hadoop_only) cleanly out-of-distribution.
+  train_workloads:
+    - name: synth_a
+      source: synthetic_sustained
+      synth_elephant_n_flows: 32
+      synth_elephant_total_gbps: 30.0
+      synth_mice_arrival_rate_per_sec: 20000.0
+      synth_mice_mean_flow_bytes: 20000.0
+      synth_mice_per_flow_gbps: 0.2
+    - name: synth_b
+      source: synthetic_sustained
+      synth_elephant_n_flows: 16
+      synth_elephant_total_gbps: 45.0
+      synth_mice_arrival_rate_per_sec: 50000.0
+      synth_mice_mean_flow_bytes: 8000.0
+      synth_mice_per_flow_gbps: 0.5
+    - name: hal_webcache_balanced
+      source: hal_composite
+      hal_mix_web: 0.5
+      hal_mix_cache: 0.5
+      hal_mix_hadoop: 0.0
+      hal_total_gbps: 50.0
+    - name: hal_webcache_heavy
+      source: hal_composite
+      hal_mix_web: 0.3
+      hal_mix_cache: 0.7
+      hal_mix_hadoop: 0.0
+      hal_total_gbps: 80.0
+
+  # RSS indirection table initial mappings rotated per workload to
+  # cover both steady-state and skewed-transient regimes.
+  # ``modulo`` is the deterministic "bucket_id % num_queues" mapping
+  # (evenly distributed); ``skewed`` is the two-hot-queue layout
+  # (50/30/10/10) used in both eval suites.
+  rss_variants: ["modulo", "skewed"]
+
+  # 3 seeds/variant -> 4 workloads * 2 RSS * 3 seeds = 24 train runs.
+  train_seeds: [11, 22, 33]
+
+  # 1 held-out seed/variant -> 4 * 2 * 1 = 8 val runs (entire runs
+  # never seen at training time; samples inside a val run may still
+  # be close to each other in time, which is fine because they never
+  # appear in the train fold).
+  val_seeds: [99]
+
+  # Serialized dataset (produced by gen_tcn_dataset.py, consumed by
+  # train_tcn.py).
+  dataset_path: data/tcn_dataset.npz
+
+output:
+  # Single "weights" file. Contains ONLY what inference needs:
+  #   - state_dict        : trained parameters
+  #   - norm_mean, norm_std : per-channel z-score (4,) vectors
+  #   - W                 : training window (sanity check at load)
+  # Arch constants (channels / kernel / layers) are baked into the
+  # TCNPredictor defaults; if you change them, regenerate the file.
+  weights_file: models/tcn_pred.pt
+  # Training diagnostics (loss curve, per-split MSE/MAE/correlation).
+  metrics_file: models/tcn_pred_metrics.json

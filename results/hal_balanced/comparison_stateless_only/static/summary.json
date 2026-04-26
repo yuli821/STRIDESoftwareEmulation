@@ -1,0 +1,105 @@
+{
+  "enabled_domains": {
+    "stateless": true,
+    "stateful": false
+  },
+  "epochs": {
+    "stateless_epoch_bins": 3,
+    "stateful_epoch_bins": 100,
+    "delta_bin_ns": 10000.0,
+    "stateless_epoch_ns": 30000.0,
+    "stateful_epoch_ns": 1000000.0
+  },
+  "workload_realism": {
+    "stateless": [
+      {
+        "domain": "stateless",
+        "kind": "web",
+        "source": "hal_composite",
+        "n_flows": 13236,
+        "target_gbps": 16.666666666666664,
+        "realized_gbps_before": null,
+        "realized_gbps": 16.41145465980909,
+        "total_packets": 88686,
+        "mean_pkt_bytes": 1387.8843560426674,
+        "hal_mu": -1.37,
+        "hal_sigma": 1.97,
+        "hal_layer1_mean_gbps": 16.21453353572813,
+        "hal_layer1_max_gbps": 100.0,
+        "hal_link_clip_gbps": 100.0,
+        "hal_rate_update_ns": 1000000.0,
+        "mean_flow_bytes": 9299.32849803566,
+        "rate_error_fraction": -0.015312720411454565,
+        "warn_rate_mismatch": false
+      },
+      {
+        "domain": "stateless",
+        "kind": "cache",
+        "source": "hal_composite",
+        "n_flows": 375,
+        "target_gbps": 16.666666666666664,
+        "realized_gbps_before": null,
+        "realized_gbps": 10.532289824461836,
+        "total_packets": 52972,
+        "mean_pkt_bytes": 1491.206203277203,
+        "hal_mu": -9.0,
+        "hal_sigma": 7.55,
+        "hal_layer1_mean_gbps": 11.977530847685543,
+        "hal_layer1_max_gbps": 100.0,
+        "hal_link_clip_gbps": 100.0,
+        "hal_rate_update_ns": 1000000.0,
+        "mean_flow_bytes": 210645.8,
+        "rate_error_fraction": -0.3680626105322897,
+        "warn_rate_mismatch": true
+      },
+      {
+        "domain": "stateless",
+        "kind": "hadoop",
+        "source": "hal_composite",
+        "n_flows": 856,
+        "target_gbps": 16.666666666666664,
+        "realized_gbps_before": null,
+        "realized_gbps": 17.97509330041511,
+        "total_packets": 90611,
+        "mean_pkt_bytes": 1487.823796227831,
+        "hal_mu": -4.18,
+        "hal_sigma": 6.56,
+        "hal_layer1_mean_gbps": 17.676598068509673,
+        "hal_layer1_max_gbps": 100.0,
+        "hal_link_clip_gbps": 100.0,
+        "hal_rate_update_ns": 1000000.0,
+        "mean_flow_bytes": 157492.05841121497,
+        "rate_error_fraction": 0.0785055980249068,
+        "warn_rate_mismatch": true
+      }
+    ]
+  },
+  "pcie": {
+    "bandwidth_gbps": 64.0,
+    "fifo_bytes": 262144,
+    "total_accept_pkts": 0,
+    "total_pcie_drops_stateless": 79121,
+    "total_pcie_drops_stateful": 0
+  },
+  "stateless": {
+    "domain": "stateless",
+    "epochs": 2000,
+    "aggregate_B_gen_GB": 0.336850777,
+    "aggregate_B_adm_GB": 0.207142923,
+    "aggregate_B_drop_GB": 0.115299308,
+    "overall_drop_ratio": 0.34228600873911597,
+    "mean_P_max": 0.08783379012776035,
+    "p99_P_max": 0.49999999999983336,
+    "mean_fairness_P": 0.37575302324095183,
+    "mean_imbalance_B": 0.3736149264596528,
+    "total_reassignments": 0,
+    "mean_lat_p50_ns": 10466.56843679436,
+    "mean_lat_p95_ns": 11535.123377584461,
+    "mean_lat_p99_ns": 11729.486610541984,
+    "mean_lat_p999_ns": 11802.084202549882,
+    "mean_lat_max_ns": 11810.98039147776,
+    "worst_lat_p99_ns": 35144.35696993172,
+    "worst_lat_p999_ns": 35250.06006246224,
+    "worst_lat_max_ns": 35271.58075230569
+  }
+}

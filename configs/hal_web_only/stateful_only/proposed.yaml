@@ -1,0 +1,110 @@
+arbiter:
+  policy: wrr
+  wrr_weight_stateful: 1
+  wrr_weight_stateless: 2
+experiment:
+  enable_stateful: true
+  enable_stateless: false
+  log_per_bucket_trace: true
+  log_time_series: true
+  make_plots: true
+  name: proposed
+  results_dir: results
+  rng_seed: 12648430
+host:
+  fpga_egress_fifo_bytes: 262144
+  pcie_bandwidth_gbps: 64.0
+  pcie_setup_ns: 0.0
+  rtt_calibration_t_app_base_ns: 300.0
+  rtt_table:
+  - - 64
+    - 3800.0
+  - - 128
+    - 3950.0
+  - - 256
+    - 3980.0
+  - - 512
+    - 4000.0
+  - - 1024
+    - 4100.0
+  - - 2048
+    - 4200.0
+  - - 4096
+    - 4500.0
+  stateful_per_conn_lookup_ns: 80.0
+  stateful_t_app_jitter_ns: 400.0
+  stateful_t_app_mean_ns: 2000.0
+  stateless_t_app_jitter_ns: 60.0
+  stateless_t_app_mean_ns: 400.0
+  t_writeback_ns: 500.0
+  use_pcie_link: true
+predictor:
+  W_window_epochs: 8
+  ewma_alpha: 0.3
+  predictor_type: ewma
+stateful_scheduler:
+  epsilon_t: 0.001
+  eta1: 0.6
+  eta2: 0.4
+  handoff_ack_mean_ns: 20000.0
+  handoff_ack_std_ns: 5000.0
+  handoff_buffer_bytes: 1000000
+  handoff_drain_mean_ns: 20000.0
+  handoff_drain_std_ns: 10000.0
+  handoff_latency_ewma_alpha: 0.2
+  handoff_migration_mean_ns: 60000.0
+  handoff_migration_std_ns: 15000.0
+  lambda_t: 0.01
+  max_concurrent_handoffs: 2
+  scheduler_type: proposed
+  tau_cold_t: 0.15
+  tau_hot_t: 0.3
+stateless_scheduler:
+  alpha_blend: 0.8
+  fit_condition_tolerance: 0.1
+  max_moves_per_epoch: 16
+  scheduler_type: static
+  tau_cold_s: 0.2
+  tau_hot_s: 0.35
+telemetry:
+  eps: 1.0e-09
+  w1: 0.3
+  w2: 0.2
+  w3: 0.5
+time:
+  H_bins_per_epoch: 10
+  clk_period_ns: 4.0
+  delta_bin_ns: 10000.0
+  num_epochs: 2000
+  num_epochs_stateful: 500
+  num_epochs_stateless: 0
+  stateful_epoch_bins: 100
+  stateless_epoch_bins: 3
+topology:
+  descriptor_ring_depth_stateful: 2048
+  descriptor_ring_depth_stateless: 2048
+  initial_rss_stateful: modulo
+  initial_rss_stateless: modulo
+  num_cores_stateful: 8
+  num_cores_stateless: 8
+  num_stateful_buckets: 128
+  num_stateful_queues: 8
+  num_stateless_buckets: 128
+  num_stateless_queues: 8
+  queue_to_core_map_stateful: one_to_one
+  queue_to_core_map_stateless: one_to_one
+workload:
+  hal_link_gbps: 100.0
+  hal_mix_cache: 0.0
+  hal_mix_hadoop: 0.0
+  hal_mix_web: 1.0
+  hal_rate_update_ns: 1000000.0
+  hal_total_gbps: 1.6
+  hash_mode: toeplitz
+  max_link_gbps: 200.0
+  mtu_bytes: 1500
+  pattern_shift_period_epochs: 300
+  per_flow_rate_gbps: 10.0
+  source: hal_composite
+  trace_mix_stateful: []
+  trace_mix_stateless: []

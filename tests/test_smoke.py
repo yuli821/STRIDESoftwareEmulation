@@ -61,7 +61,7 @@ def test_config_loads():
     assert cfg.time.H_bins_per_epoch == 10
     assert cfg.time.stateless_epoch_bins > 0
     assert cfg.time.stateful_epoch_bins > 0
-    assert cfg.workload.source == "imc17_cdf"
+    assert cfg.workload.source == "poisson_flow"
 
 
 def test_imc17_cdf_sampler_is_monotonic():
@@ -112,6 +112,52 @@ def test_pcie_link_serializes_and_drops_on_fifo_overflow():
     # After link drains, next packet should succeed.
     res = link.try_transmit(200.0, 1024)
     assert res is not None and res > 200.0
+
+
+def test_flow_size_sampler_anchors_and_monotonic():
+    """Canonical published flow-size CDFs must sample monotonically
+    over uniform u, and the analytic mean must be positive and match
+    the order-of-magnitude of the published distribution."""
+    from src.workload_cdfs import CLASSES, make_flow_size_sampler
+    rng = np.random.default_rng(123)
+    for cls in CLASSES:
+        s = make_flow_size_sampler(cls)
+        # mean sane (bytes in a plausible range for datacenter flows)
+        assert 100 < s.mean < 1e10, (cls, s.mean)
+        xs = s.sample(10000, rng)
+        # all positive, no NaN
+        assert np.all(xs > 0), cls
+        # monotone inverse: sorted u -> sorted x
+        u = np.sort(rng.random(4096))
+        log_x = np.interp(u, s.ps, s.log_xs)
+        assert np.all(np.diff(log_x) >= -1e-9), cls
+
+
+def test_poisson_flow_generator_hits_target_load():
+    """Poisson arrivals calibrated to target Gbps should produce a
+    realized rate within ~20% of target for a reasonable horizon."""
+    from src.traces import _gen_poisson_flows
+    rng = np.random.default_rng(7)
+    horizon_ns = 200_000_000  # 200 ms
+    pairs, diag = _gen_poisson_flows(
+        "web_search", target_gbps=10.0, horizon_ns=horizon_ns,
+        rng=rng, per_flow_rate_gbps=10.0)
+    assert diag["n_flows"] > 0
+    assert 8.0 < diag["realized_gbps"] < 12.5, diag
+
+
+def test_rpc_generator_hits_target_load():
+    """RPC model over fixed connections should match target aggregate
+    Gbps after think-time calibration."""
+    from src.traces import _gen_rpc_connections
+    rng = np.random.default_rng(11)
+    horizon_ns = 200_000_000
+    pairs, diag = _gen_rpc_connections(
+        "cache_follower", n_connections=64,
+        target_gbps=4.0, horizon_ns=horizon_ns,
+        rng=rng, per_flow_rate_gbps=10.0)
+    assert len(pairs) == 64
+    assert 3.0 < diag["realized_gbps"] < 5.0, diag
 
 
 def test_isolated_domain_runs_produce_only_enabled_side():
@@ -165,5 +211,8 @@ if __name__ == "__main__":
     test_config_loads()
     test_imc17_cdf_sampler_is_monotonic()
     test_stateless_scheduler_matrix_parse()
+    test_flow_size_sampler_anchors_and_monotonic()
+    test_poisson_flow_generator_hits_target_load()
+    test_rpc_generator_hits_target_load()
     test_isolated_domain_runs_produce_only_enabled_side()
     print("smoke tests passed")

@@ -116,25 +116,77 @@ fallback (useful as an uncongested baseline). Your measured RTT table
 ## Workload (per-flow packet traces)
 
 Each flow has a 5-tuple and a pre-computed timeline
-`(timestamps_ns, sizes_bytes)` spanning the sim horizon. Sources:
+`(timestamps_ns, sizes_bytes)` spanning the sim horizon. Burstiness in
+the emulator emerges from **flow-level concurrency** (many concurrent
+flows / RPCs arriving on shared queues), which is the standard
+methodology used by every recent datacenter-transport paper. Sources:
 
-* **`imc17_cdf`** (preferred) — per-class generator driven by digitized
-  CDFs approximated from Zhang et al. "High-resolution measurement of
-  datacenter microbursts" (IMC '17) and Roy et al. SIGCOMM '15. For
-  each class (`web` / `cache` / `hadoop`) the generator samples
-  ON/OFF durations, intra-burst inter-arrival times and per-packet
-  sizes from the class's CDFs (see `src/imc17_cdf.py`), then performs
-  a shape-preserving time-scale correction so the long-run aggregate
-  rate matches the configured `gbps` within <2%.
-* **`trace_mix`** — legacy; compose `web` / `cache` / `hadoop` /
-  `synthetic_rates` kinds using hand-coded heuristic generators.
+* **`poisson_flow`** (primary, stateless) — canonical synthetic
+  datacenter workload. Flow inter-arrivals are drawn from an
+  exponential distribution whose rate `λ` is calibrated so the
+  long-run aggregate offered load equals the configured `gbps`. Each
+  flow's size is sampled from a **published datacenter flow-size
+  CDF**; within a flow, packets are emitted back-to-back at
+  `per_flow_rate_gbps`. This is the methodology of
+  **pFabric** (Alizadeh et al., SIGCOMM'13),
+  **PIAS** (Bai et al., NSDI'15),
+  **Homa** (Montazeri et al., SIGCOMM'18), and
+  **NDP** (Handley et al., SIGCOMM'17).
+
+* **`rpc`** (primary, stateful) — canonical workload for stateful
+  TCP evaluation. A fixed set of long-lived connections each carries
+  a sequence of RPCs: request → exponential think-time → next RPC.
+  RPC sizes are sampled from the same class CDFs; think-time is
+  auto-calibrated to match the target aggregate `gbps`. Matches the
+  Homa workload methodology (Montazeri et al., SIGCOMM'18).
+
+* **`imc17_cdf`** (deprecated) — per-flow ON/OFF model fitted to
+  IMC'17 aggregate port statistics. Kept only for backward
+  comparison; IMC'17 characterizes per-port traffic, not per-flow,
+  so this source is not a correct per-flow generator.
+
 * **`trace_csv`** — load real per-packet traces from CSV
   (`flow_id, timestamp_ns, size_bytes [, src_ip, dst_ip, src_port, dst_port, proto]`).
-* **`synthetic_rates`** — parametric: `flow_rate_distribution`
-  (`uniform` / `zipf` / `heavy_hitter`) × `packet_size_distribution`
-  (`fixed` / `imix`) × `burstiness_model` (`cbr` / `onoff`).
+* **`synthetic_rates`** / **`trace_mix`** — legacy knobs retained for
+  micro-experiments.
 
 Flow's RSS bucket is the real Toeplitz hash of its 5-tuple.
+
+### Published flow-size CDFs used
+
+The four class CDFs in `src/workload_cdfs.py` are the anchors reported
+in the original measurement papers (widely reproduced in public
+datacenter-transport simulators):
+
+| class name       | description                                 | source |
+|------------------|---------------------------------------------|--------|
+| `web_search`     | Microsoft web-search cluster flow-size CDF  | Alizadeh et al., *DCTCP*, **SIGCOMM'10**, Fig. 3 |
+| `data_mining`    | Microsoft data-mining cluster flow-size CDF | Greenberg et al., *VL2*, **SIGCOMM'09**, Fig. 3 |
+| `cache_follower` | Facebook cache-follower cluster             | Roy et al., **SIGCOMM'15**, Fig. 9 |
+| `hadoop`         | Facebook Hadoop cluster                     | Roy et al., **SIGCOMM'15**, Fig. 9 |
+
+The sampler uses log-linear inverse-CDF lookup (appropriate for
+distributions spanning 4–8 orders of magnitude), and the Poisson
+arrival rate is set from the analytic closed-form mean of the
+log-linear sampler so realized aggregate load matches `gbps`.
+
+### Example `trace_mix` entries
+
+```yaml
+# Stateless (Poisson flows over published flow-size CDFs)
+source: poisson_flow
+per_flow_rate_gbps: 10.0
+trace_mix_stateless:
+  - {kind: web_search,  gbps: 20.0}
+  - {kind: data_mining, gbps: 20.0}
+
+# Stateful (Homa-style RPCs over long-lived TCP connections)
+source: rpc
+rpc_think_time_mean_ns: 50000.0
+trace_mix_stateful:
+  - {kind: cache_follower, n_flows: 120, gbps: 8.0}
+  - {kind: hadoop,         n_flows: 16,  gbps: 12.0}
+```
 
 ### Realism checklist in `summary.json`
 

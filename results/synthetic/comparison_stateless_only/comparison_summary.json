@@ -1,0 +1,266 @@
+{
+  "pred_oneshot": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "synthetic_sustained",
+          "source": "synthetic_sustained",
+          "n_flows": 1289,
+          "n_elephants": 32,
+          "n_mice": 1260,
+          "target_gbps": 33.263064429739906,
+          "realized_gbps_before": null,
+          "realized_gbps": 33.00079944998667,
+          "total_packets": 165004,
+          "mean_pkt_bytes": 1500.0,
+          "synth_elephant_total_gbps": 30.0,
+          "synth_mice_arrival_rate_per_sec": 20000.0,
+          "synth_mice_mean_flow_bytes": 20000.0,
+          "synth_mice_per_flow_gbps": 0.2,
+          "synth_mice_aggregate_gbps_nominal": 3.263064429739909,
+          "rate_error_fraction": -0.007884570596530693,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 2000,
+      "aggregate_B_gen_GB": 0.247506,
+      "aggregate_B_adm_GB": 0.247476,
+      "aggregate_B_drop_GB": 3e-05,
+      "overall_drop_ratio": 0.00012120918280768952,
+      "mean_P_max": 0.07044815158438206,
+      "p99_P_max": 0.29414453125,
+      "mean_fairness_P": 0.4706838437734147,
+      "mean_fairness_B": 0.9128702799283829,
+      "mean_imbalance_B": 0.1561073209893078,
+      "total_reassignments": 5,
+      "mean_lat_p50_ns": 9645.664885007613,
+      "mean_lat_p95_ns": 121530.4356758479,
+      "mean_lat_p99_ns": 122867.27140494056,
+      "mean_lat_p999_ns": 123293.41403428298,
+      "mean_lat_max_ns": 123340.89571867771,
+      "worst_lat_p99_ns": 512619.4003445347,
+      "worst_lat_p999_ns": 512930.02155505447,
+      "worst_lat_max_ns": 512964.53502288996
+    }
+  },
+  "pred_qp_oneshot": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "synthetic_sustained",
+          "source": "synthetic_sustained",
+          "n_flows": 1289,
+          "n_elephants": 32,
+          "n_mice": 1260,
+          "target_gbps": 33.263064429739906,
+          "realized_gbps_before": null,
+          "realized_gbps": 33.00079944998667,
+          "total_packets": 165004,
+          "mean_pkt_bytes": 1500.0,
+          "synth_elephant_total_gbps": 30.0,
+          "synth_mice_arrival_rate_per_sec": 20000.0,
+          "synth_mice_mean_flow_bytes": 20000.0,
+          "synth_mice_per_flow_gbps": 0.2,
+          "synth_mice_aggregate_gbps_nominal": 3.263064429739909,
+          "rate_error_fraction": -0.007884570596530693,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 2000,
+      "aggregate_B_gen_GB": 0.247506,
+      "aggregate_B_adm_GB": 0.24738,
+      "aggregate_B_drop_GB": 0.000126,
+      "overall_drop_ratio": 0.000509078567792296,
+      "mean_P_max": 0.13792471080024574,
+      "p99_P_max": 0.3280734953703696,
+      "mean_fairness_P": 0.3905106906250615,
+      "mean_fairness_B": 0.8645820453353112,
+      "mean_imbalance_B": 0.21096943032350146,
+      "total_reassignments": 5,
+      "mean_lat_p50_ns": 20086.673476057596,
+      "mean_lat_p95_ns": 235767.2863355975,
+      "mean_lat_p99_ns": 237107.23139729793,
+      "mean_lat_p999_ns": 237531.3422472331,
+      "mean_lat_max_ns": 237578.5745418836,
+      "worst_lat_p99_ns": 519233.92394759954,
+      "worst_lat_p999_ns": 519296.6363261488,
+      "worst_lat_max_ns": 519303.60436820984
+    }
+  },
+  "qp_oneshot": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "synthetic_sustained",
+          "source": "synthetic_sustained",
+          "n_flows": 1289,
+          "n_elephants": 32,
+          "n_mice": 1260,
+          "target_gbps": 33.263064429739906,
+          "realized_gbps_before": null,
+          "realized_gbps": 33.00079944998667,
+          "total_packets": 165004,
+          "mean_pkt_bytes": 1500.0,
+          "synth_elephant_total_gbps": 30.0,
+          "synth_mice_arrival_rate_per_sec": 20000.0,
+          "synth_mice_mean_flow_bytes": 20000.0,
+          "synth_mice_per_flow_gbps": 0.2,
+          "synth_mice_aggregate_gbps_nominal": 3.263064429739909,
+          "rate_error_fraction": -0.007884570596530693,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 2000,
+      "aggregate_B_gen_GB": 0.247506,
+      "aggregate_B_adm_GB": 0.2473395,
+      "aggregate_B_drop_GB": 0.0001665,
+      "overall_drop_ratio": 0.0006727109645826768,
+      "mean_P_max": 0.18249468743657574,
+      "p99_P_max": 0.3286941579433489,
+      "mean_fairness_P": 0.30608230851738766,
+      "mean_fairness_B": 0.8703883404373083,
+      "mean_imbalance_B": 0.20863850140052378,
+      "total_reassignments": 9,
+      "mean_lat_p50_ns": 11803.964181313642,
+      "mean_lat_p95_ns": 311131.58644641243,
+      "mean_lat_p99_ns": 312502.8511826982,
+      "mean_lat_p999_ns": 312946.28479098465,
+      "mean_lat_max_ns": 312995.6945145858,
+      "worst_lat_p99_ns": 517544.2714601904,
+      "worst_lat_p999_ns": 517655.5397151783,
+      "worst_lat_max_ns": 517667.9028546214
+    }
+  },
+  "static": {
+    "enabled_domains": {
+      "stateless": true,
+      "stateful": false
+    },
+    "epochs": {
+      "stateless_epoch_bins": 3,
+      "stateful_epoch_bins": 100,
+      "delta_bin_ns": 10000.0,
+      "stateless_epoch_ns": 30000.0,
+      "stateful_epoch_ns": 1000000.0
+    },
+    "workload_realism": {
+      "stateless": [
+        {
+          "domain": "stateless",
+          "kind": "synthetic_sustained",
+          "source": "synthetic_sustained",
+          "n_flows": 1289,
+          "n_elephants": 32,
+          "n_mice": 1260,
+          "target_gbps": 33.263064429739906,
+          "realized_gbps_before": null,
+          "realized_gbps": 33.00079944998667,
+          "total_packets": 165004,
+          "mean_pkt_bytes": 1500.0,
+          "synth_elephant_total_gbps": 30.0,
+          "synth_mice_arrival_rate_per_sec": 20000.0,
+          "synth_mice_mean_flow_bytes": 20000.0,
+          "synth_mice_per_flow_gbps": 0.2,
+          "synth_mice_aggregate_gbps_nominal": 3.263064429739909,
+          "rate_error_fraction": -0.007884570596530693,
+          "warn_rate_mismatch": false
+        }
+      ]
+    },
+    "pcie": {
+      "bandwidth_gbps": 128.0,
+      "fifo_bytes": 262144,
+      "total_accept_pkts": 0,
+      "total_pcie_drops_stateless": 0,
+      "total_pcie_drops_stateful": 0
+    },
+    "stateless": {
+      "domain": "stateless",
+      "epochs": 2000,
+      "aggregate_B_gen_GB": 0.247506,
+      "aggregate_B_adm_GB": 0.2147295,
+      "aggregate_B_drop_GB": 0.0327765,
+      "overall_drop_ratio": 0.13242709267654118,
+      "mean_P_max": 0.42395704402387735,
+      "p99_P_max": 0.49083806818181525,
+      "mean_fairness_P": 0.2991069953654728,
+      "mean_fairness_B": 0.6543332364531159,
+      "mean_imbalance_B": 0.39283641646452555,
+      "total_reassignments": 0,
+      "mean_lat_p50_ns": 91318.73342540905,
+      "mean_lat_p95_ns": 504931.12440844445,
+      "mean_lat_p99_ns": 505987.3551906064,
+      "mean_lat_p999_ns": 506273.9982619859,
+      "mean_lat_max_ns": 506305.8466661544,
+      "worst_lat_p99_ns": 520418.186548195,
+      "worst_lat_p999_ns": 520721.7626173033,
+      "worst_lat_max_ns": 520781.0083953142
+    }
+  }
+}

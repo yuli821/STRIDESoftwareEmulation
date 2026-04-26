@@ -99,16 +99,17 @@ def _init_domain(cfg: Config, name: str, rng: np.random.Generator,
     t_app_jit = cfg.host.stateful_t_app_jitter_ns if is_sf else cfg.host.stateless_t_app_jitter_ns
     per_conn_lk = cfg.host.stateful_per_conn_lookup_ns if is_sf else 0.0
 
-    # Each domain accumulates ``num_epochs`` of scheduler firings of
-    # its OWN epoch length. Its trace horizon is therefore
-    # ``num_epochs * epoch_bins * delta_bin_ns`` -- not the other
-    # domain's horizon.
+    # Each domain accumulates ``num_epochs_<domain>`` of scheduler
+    # firings of its OWN epoch length. Its trace horizon is therefore
+    # ``num_epochs_<domain> * epoch_bins * delta_bin_ns`` and is
+    # independent of the other domain's horizon.
     sl_epoch_bins_cfg = (cfg.time.stateless_epoch_bins
                          or cfg.time.H_bins_per_epoch)
     sf_epoch_bins_cfg = (cfg.time.stateful_epoch_bins
                          or cfg.time.H_bins_per_epoch)
     my_epoch_bins = sf_epoch_bins_cfg if is_sf else sl_epoch_bins_cfg
-    my_total_bins = cfg.time.num_epochs * my_epoch_bins
+    my_num_epochs = cfg.time.num_epochs_for(name)
+    my_total_bins = my_num_epochs * my_epoch_bins
     horizon_ns = int(cfg.time.delta_bin_ns * my_total_bins + 1)
 
     if enabled:
@@ -530,23 +531,24 @@ class Simulator:
         self._pcie_sf_epoch_drop_by_domain = {"stateless": 0, "stateful": 0}
         self._pcie_sf_epoch_fifo_peak = 0.0
 
-        # Both domains get ``num_epochs`` of scheduler firings. When
-        # their epoch lengths differ, the sim runs for
-        #   max(num_epochs*sl_bins, num_epochs*sf_bins)
-        # bins, so the domain with the longer epoch still gets
-        # num_epochs boundaries. For isolated single-domain runs we
-        # size ``total_bins`` off the enabled domain only.
+        # Each domain gets ``num_epochs_<domain>`` scheduler firings of
+        # its own ``epoch_bins`` length. The overall sim runs for
+        #   max(sl_target_epochs*sl_bins, sf_target_epochs*sf_bins)
+        # bins so each enabled domain can reach its own target epoch
+        # count. For isolated single-domain runs we size ``total_bins``
+        # off the enabled domain only.
         sl_epoch_bins = sl.epoch_bins
         sf_epoch_bins = sf.epoch_bins
-        active_bins = []
+        sl_target = cfg.time.num_epochs_for("stateless")
+        sf_target = cfg.time.num_epochs_for("stateful")
+        domain_total_bins = []
         if self.enable_sl:
-            active_bins.append(sl_epoch_bins)
+            domain_total_bins.append(sl_target * sl_epoch_bins)
         if self.enable_sf:
-            active_bins.append(sf_epoch_bins)
-        total_bins = cfg.time.num_epochs * max(active_bins)
+            domain_total_bins.append(sf_target * sf_epoch_bins)
+        total_bins = max(domain_total_bins)
         sl_epoch = 0
         sf_epoch = 0
-        target_epochs = cfg.time.num_epochs
 
         t = 0
         for _ in range(total_bins):
@@ -562,20 +564,20 @@ class Simulator:
 
             if (self.enable_sl
                     and sl.bin_in_epoch >= sl_epoch_bins
-                    and sl_epoch < target_epochs):
+                    and sl_epoch < sl_target):
                 self._on_stateless_epoch_boundary(sl_epoch)
                 sl_epoch += 1
             if (self.enable_sf
                     and sf.bin_in_epoch >= sf_epoch_bins
-                    and sf_epoch < target_epochs):
+                    and sf_epoch < sf_target):
                 self._on_stateful_epoch_boundary(sf_epoch)
                 sf_epoch += 1
             # If a domain has hit its target epoch count we stop its
             # bin counter from climbing further so we do not trigger
             # an extra epoch finalization at horizon end.
-            if sl_epoch >= target_epochs:
+            if sl_epoch >= sl_target:
                 sl.bin_in_epoch = 0
-            if sf_epoch >= target_epochs:
+            if sf_epoch >= sf_target:
                 sf.bin_in_epoch = 0
 
     def _accumulate_pcie_epoch(self) -> None:

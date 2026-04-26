@@ -19,7 +19,20 @@ class TimeConfig:
     clk_period_ns: float = 4.0              # FPGA clock (250 MHz)
     delta_bin_ns: float = 10_000.0          # telemetry bin delta
     H_bins_per_epoch: int = 10              # default per-domain epoch length
-    num_epochs: int = 1000                  # simulation horizon in stateless epochs
+    num_epochs: int = 1000                  # shared-default epoch count
+
+    # Per-domain epoch count. If 0, fall back to ``num_epochs``. The
+    # stateless domain uses a short epoch (30 us) so the scheduler
+    # reacts quickly, while the stateful domain uses a much longer
+    # epoch (1 ms) to avoid handoff thrashing. A shared ``num_epochs``
+    # therefore produces a stateful simulation horizon that is 30-50x
+    # longer than the stateless one, even though the stateful
+    # pipeline also does strictly more per-packet work (PCIe
+    # try_transmit + conn-track lookup + handoff redirection). To keep
+    # stateful wall-clock tractable without sacrificing stateless
+    # statistical richness, each domain can set its own epoch count.
+    num_epochs_stateless: int = 0
+    num_epochs_stateful: int = 0
 
     # Per-domain epoch bins. If 0, fall back to H_bins_per_epoch.
     # Stateless schedulers typically want short epochs to react quickly
@@ -41,6 +54,15 @@ class TimeConfig:
         H = self.stateful_epoch_bins or self.H_bins_per_epoch
         return self.delta_bin_ns * H
 
+    def num_epochs_for(self, domain: str) -> int:
+        """Resolve the per-domain epoch count, falling back to
+        ``num_epochs`` when the per-domain override is 0."""
+        if domain == "stateless":
+            return int(self.num_epochs_stateless or self.num_epochs)
+        if domain == "stateful":
+            return int(self.num_epochs_stateful or self.num_epochs)
+        raise ValueError(f"unknown domain {domain!r}")
+
 
 # ---------------------------------------------------------------------------
 # Topology (queues, buckets, cores, descriptor ring depth)
@@ -58,7 +80,7 @@ class TopologyConfig:
     queue_to_core_map_stateless: str = "one_to_one"  # one_to_one | round_robin | block
     queue_to_core_map_stateful: str = "one_to_one"
 
-    initial_rss_stateless: str = "modulo"            # modulo | random
+    initial_rss_stateless: str = "modulo"            # modulo | random | skewed
     initial_rss_stateful: str = "modulo"
 
     descriptor_ring_depth_stateless: int = 2048       # D_q for stateless queues
@@ -80,28 +102,71 @@ class TopologyConfig:
 # ---------------------------------------------------------------------------
 @dataclass
 class WorkloadConfig:
-    # imc17_cdf    : per-flow generator driven by digitized CDFs from
-    #                Zhang et al. IMC'17 (web / cache / hadoop). Preferred.
+    # hal_composite: PRIMARY -- two-layer bursty composite workload,
+    #                Huang et al. (HAL), ISCA 2024, Fig. 8. Layer 1 is a
+    #                per-class log-normal rate process (web mu/sigma =
+    #                -1.37/1.97, cache -9/7.55, hadoop -4.18/6.56) clipped
+    #                to link_gbps and re-scaled to a configurable
+    #                aggregate target. Layer 2 is a persistent flow
+    #                table: each new flow is sampled with a traffic
+    #                class, flow size, sending rate, duration, 5-tuple,
+    #                and RSS bucket, and stays active across epochs
+    #                until its byte budget or sampled duration is
+    #                exhausted. Per-class flow-size distributions are
+    #                chosen to match Roy et al. SIGCOMM'15 Fig. 9 (Meta
+    #                Web/Cache/Hadoop clusters) and the user
+    #                descriptions: web = small request/response mixture,
+    #                cache = tens-of-KB + MB-scale mixture, hadoop =
+    #                mice/elephant (70% < 10KB, median < 1KB, small
+    #                multi-MB tail). See ``src/hal_workload.py``.
+    # poisson_flow : legacy stateless generator. Poisson flow arrivals
+    #                + per-flow size from a published CDF (pFabric
+    #                SIGCOMM'13 / PIAS NSDI'15 / Homa SIGCOMM'18 / NDP
+    #                SIGCOMM'17 methodology). Kept for regression.
+    # rpc          : legacy stateful generator. Long-lived connections
+    #                carrying RPCs with exponential think-time (Homa
+    #                SIGCOMM'18 workload model). Kept for regression.
+    # imc17_cdf    : deprecated -- per-flow ON/OFF model digitized from
+    #                port-level IMC'17 statistics; kept for backward
+    #                comparison only. IMC'17 characterizes per-port,
+    #                not per-flow.
     # trace_mix    : legacy hand-tuned generators for web/cache/hadoop.
     # trace_csv    : load packet traces from CSV.
     # synthetic_rates: zipf / heavy-hitter / uniform rate dist + cbr/onoff.
-    source: str = "imc17_cdf"   # imc17_cdf | trace_mix | trace_csv | synthetic_rates
+    # synthetic_sustained: diagnostic CBR workload with optional
+    #                periodic burst overlay. Purpose: isolate scheduler
+    #                behaviour from workload variance. See
+    #                ``synth_*`` knobs below.
+    source: str = "hal_composite"  # hal_composite | poisson_flow | rpc |
+                                   # imc17_cdf | trace_mix | trace_csv |
+                                   # synthetic_rates | synthetic_sustained
 
     # ----- trace_csv path -----
     trace_file_stateless: Optional[str] = None
     trace_file_stateful: Optional[str] = None
 
     # ----- trace_mix path -----
-    # Each entry: {kind: web|cache|hadoop|synthetic_rates, n_flows: int, gbps: float,
-    #              [rate_distribution: uniform|zipf|heavy_hitter], [zipf_s], ...}
+    # Each entry: {kind, n_flows, gbps, [per_flow_rate_gbps], [mtu_bytes], ...}
+    #
+    # For ``source: poisson_flow`` / ``source: rpc`` the allowed kinds are
+    # the four published flow-size CDFs:
+    #   - ``web_search``     (DCTCP, Alizadeh et al. SIGCOMM'10)
+    #   - ``data_mining``    (VL2,   Greenberg et al. SIGCOMM'09)
+    #   - ``cache_follower`` (FB,    Roy et al. SIGCOMM'15)
+    #   - ``hadoop``         (FB,    Roy et al. SIGCOMM'15)
+    # For the rpc source, ``n_flows`` is the number of long-lived
+    # connections. For poisson_flow, ``n_flows`` is *ignored* (the flow
+    # count is the stochastic outcome of the Poisson arrival process).
+    #
+    # For ``source: imc17_cdf`` / ``source: trace_mix`` the legacy kinds
+    # ``web`` / ``cache`` / ``hadoop`` are used instead.
     trace_mix_stateless: List[dict] = field(default_factory=lambda: [
-        {"kind": "cache",  "n_flows": 96, "gbps": 30.0},
-        {"kind": "web",    "n_flows": 96, "gbps": 20.0},
-        {"kind": "hadoop", "n_flows": 32, "gbps": 30.0},
+        {"kind": "web_search",  "gbps": 20.0},
+        {"kind": "data_mining", "gbps": 20.0},
     ])
     trace_mix_stateful: List[dict] = field(default_factory=lambda: [
-        {"kind": "web",    "n_flows": 48, "gbps": 10.0},
-        {"kind": "hadoop", "n_flows": 16, "gbps": 15.0},
+        {"kind": "cache_follower", "n_flows": 120, "gbps": 8.0},
+        {"kind": "hadoop",         "n_flows": 16,  "gbps": 12.0},
     ])
 
     # ----- synthetic_rates path (and synthetic_rates kind inside trace_mix) -----
@@ -129,6 +194,86 @@ class WorkloadConfig:
     max_link_gbps: float = 200.0
     hash_mode: str = "toeplitz"
     pattern_shift_period_epochs: int = 300      # 0 = no drift
+
+    # ----- poisson_flow / rpc shared knobs -----
+    # Per-flow rate cap (Gbps) for within-flow back-to-back emission.
+    # Conventional datacenter simulators (pFabric SIGCOMM'13, Homa
+    # SIGCOMM'18) model each flow saturating its share of the NIC,
+    # typically line-rate. 10 Gbps is a good default so heavy-tail
+    # flows complete within typical simulation horizons; set smaller
+    # per-spec if you want to model rate-limited flows explicitly.
+    per_flow_rate_gbps: float = 10.0
+    mtu_bytes: int = 1500
+    # Minimum mean think time between RPCs on a connection (ns). The
+    # actual mean is auto-calibrated upward when needed to match
+    # ``gbps``; this is a floor.
+    rpc_think_time_mean_ns: float = 50_000.0
+
+    # ----- hal_composite knobs -----------------------------------------
+    # Huang et al. (HAL, ISCA'24) two-layer bursty composite workload.
+    # See ``src/hal_workload.py`` for the full methodology.
+    #
+    # ``hal_mix_*`` are the time-average mix fractions across web / cache
+    # / hadoop; must sum to 1. ``hal_total_gbps`` is the aggregate target
+    # offered load -- the per-class targets are
+    # ``mix_c * hal_total_gbps``. ``hal_link_gbps`` is the clip threshold
+    # for the lognormal rate process (100 Gbps reproduces HAL Fig. 8
+    # averages of 1.6/5.2/10.9 Gbps for web/cache/hadoop without
+    # re-scaling). ``hal_rate_update_ns`` is the Layer-1 resampling
+    # period; 1 ms matches the visible time-scale of rate change in
+    # HAL Fig. 8.
+    hal_mix_web: float = 1.0 / 3.0
+    hal_mix_cache: float = 1.0 / 3.0
+    hal_mix_hadoop: float = 1.0 / 3.0
+    hal_total_gbps: float = 50.0
+    hal_link_gbps: float = 100.0
+    hal_rate_update_ns: float = 1_000_000.0
+    # Number of independent HAL tenants. Per-class Layer-1 rate is the
+    # sum of ``hal_n_tenants`` independent lognormal timelines, each
+    # targeting ``(mix_c * hal_total_gbps) / hal_n_tenants``. Default 1
+    # reproduces the single-process HAL Fig. 8 exactly; raising it
+    # models multi-tenant host-sharing (the aggregate has the same
+    # mean but lower variance; coincident bursts become rarer).
+    hal_n_tenants: int = 1
+
+    # ----- synthetic_sustained knobs ----------------------------------
+    # Diagnostic mice/elephant workload for scheduler microbenchmarks.
+    # Two components:
+    #
+    # 1. ELEPHANT flows: ``synth_elephant_n_flows`` long-lived CBR
+    #    flows, each emitting at a stable per-flow rate for the full
+    #    horizon. Stable 5-tuples -> fixed bucket assignment -> once
+    #    the scheduler rebalances the RSS table the per-queue
+    #    elephant load is uniform. Carries most of the aggregate
+    #    offered load.
+    #
+    # 2. MICE flows: Poisson-arrival short-lived CBR bursts. Arrival
+    #    rate ``synth_mice_arrival_rate_per_sec``; each mouse has a
+    #    flow size drawn from a lognormal (``synth_mice_mean_flow_bytes``
+    #    is the target mean, ``synth_mice_size_sigma`` is the
+    #    dispersion) and sends packets back-to-back at
+    #    ``synth_mice_per_flow_gbps`` until the byte budget is
+    #    exhausted. Fresh 5-tuple per mouse so RSS-placement is
+    #    continuously randomised, producing smooth Poisson-style
+    #    fluctuation around the sustained elephant baseline instead
+    #    of the deterministic 5-ms step that the older burst-overlay
+    #    design produced.
+    #
+    # Justification: mice/elephant concurrency is the canonical Meta
+    # workload shape (Roy et al. SIGCOMM 2015; Kandula et al. IMC
+    # 2009; Benson et al. IMC 2010) -- hundreds of simultaneous
+    # short-lived flows layered on a small set of long-lived bulk
+    # transfers. This is NOT a published trace; it is a controlled
+    # microbenchmark whose ideal scheduler output is still known
+    # a-priori (near-uniform long-run byte share under a working
+    # adaptive scheduler).
+    synth_elephant_n_flows: int = 32
+    synth_elephant_total_gbps: float = 30.0
+    synth_mice_arrival_rate_per_sec: float = 100_000.0
+    synth_mice_mean_flow_bytes: float = 8_000.0
+    synth_mice_size_sigma: float = 1.0
+    synth_mice_per_flow_gbps: float = 1.0
+    synth_mtu_bytes: int = 1500
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +374,10 @@ class PredictorConfig:
     tcn_channels: int = 16
     tcn_kernel: int = 3
     tcn_layers: int = 2
+    # Path (relative to repo root or absolute) to the trained TCN
+    # weights file produced by ``scripts/train_tcn.py``. Required when
+    # ``predictor_type == "tcn"``; ignored otherwise.
+    tcn_checkpoint: str = ""
 
 
 # ---------------------------------------------------------------------------

@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
-"""Regenerate all per-experiment YAML files under configs/stateless and
-configs/stateful from a shared base template.
+"""Regenerate all per-experiment YAML files from a shared baseline.
 
-Run this whenever you change the shared workload/host/topology knobs so
-every experiment stays in sync.
+Layout
+------
+
+``configs/hal_<mix>/stateless_only/*.yaml`` and
+``configs/hal_<mix>/stateful_only/*.yaml`` are generated for every
+composite mix in ``MIXES`` below. The top-level ``configs/stateless/``
+and ``configs/stateful/`` phase-2 coexistence suites are also emitted
+using the ``balanced`` mix so the old plumbing keeps working.
+
+For every mix we emit the full scheduler sweep (STATELESS_VARIANTS for
+stateless_only, STATEFUL_VARIANTS for stateful_only).
+
+Run whenever you change any shared workload / host / topology knob.
 """
 from __future__ import annotations
 
@@ -16,16 +26,26 @@ ROOT = os.path.dirname(HERE)
 
 
 # ----------------------------------------------------------------------
-# Shared baseline. Every stateless / stateful experiment uses this and
-# then overrides only the scheduler-specific knobs + experiment.name.
+# Shared baseline.
 # ----------------------------------------------------------------------
 BASE = {
     "time": {
         "clk_period_ns": 4.0,
-        "delta_bin_ns": 10000.0,
+        "delta_bin_ns": 10000.0,          # 10 us bins
         "H_bins_per_epoch": 10,           # legacy fallback
-        "num_epochs": 500,                # outer (stateless) epochs
-        "stateless_epoch_bins": 5,        # 50 us per stateless epoch
+        # Per-domain epoch budgets:
+        #   stateless: 2000 epochs * 3 bins * 10 us = 60 ms
+        #   stateful :  500 epochs * 100 bins * 10 us = 500 ms
+        # Stateful horizon is intentionally shorter than a naive
+        # num_epochs=2000 setup (which would yield 2 s of stateful
+        # traffic and ~5.4M packets to simulate through the Python
+        # hot loop). 500 epochs is still a large statistical sample
+        # (500 Layer-1 lognormal rate draws) and enough for the
+        # stateful scheduler to complete dozens of handoff migrations.
+        "num_epochs": 2000,
+        "num_epochs_stateless": 0,        # 0 -> fall back to num_epochs (2000)
+        "num_epochs_stateful": 500,
+        "stateless_epoch_bins": 3,        # 30 us per stateless epoch
         "stateful_epoch_bins": 100,       # 1 ms per stateful epoch
     },
     "topology": {
@@ -33,41 +53,43 @@ BASE = {
         "num_stateful_queues": 8,
         "num_stateless_buckets": 128,
         "num_stateful_buckets": 128,
+        # 8 cores per domain (= 8 RX queues), per user spec.
         "num_cores_stateless": 8,
         "num_cores_stateful": 8,
         "queue_to_core_map_stateless": "one_to_one",
         "queue_to_core_map_stateful": "one_to_one",
-        # Random RSS so hot buckets can collide on the same queue.
-        "initial_rss_stateless": "random",
-        "initial_rss_stateful": "random",
+        # Deterministic initial RSS: bucket_id % num_queues.
+        # With the HAL-composite workload the burstiness is already
+        # bursty enough from the log-normal rate process and the
+        # mice/elephant size mixture; we don't need random initial
+        # assignment to force hot-bucket collisions.
+        "initial_rss_stateless": "modulo",
+        "initial_rss_stateful": "modulo",
         "descriptor_ring_depth_stateless": 2048,
         "descriptor_ring_depth_stateful": 2048,
     },
     "workload": {
-        # CDF-driven per-flow generation based on digitized IMC'17 and
-        # Roy '15 CDFs (flow size / packet size / IAT / ON-OFF).
-        "source": "imc17_cdf",
-        # Per-class flow counts chosen so the *target* per-flow rate
-        # is within the natural range of IMC'17 CDFs (cache: a few
-        # Mbps, web: ~10 Mbps, hadoop: ~Gbps). This keeps the
-        # per-class time_scale near 1 and avoids pathological cycle
-        # counts in the CDF-driven generator.
-        #
-        # Stateless aggregate ~56 Gbps, close to the 8-core capacity
-        # (~64 Gbps at T_app=400 ns for the IMIX mix below), so random
-        # 5-tuple + random RSS collisions reliably push 1-2 queues
-        # over their core budget -> credit drops + P_q rises.
-        "trace_mix_stateless": [
-            {"kind": "cache",  "n_flows": 500, "gbps": 18.0},
-            {"kind": "web",    "n_flows": 400, "gbps": 13.0},
-            {"kind": "hadoop", "n_flows": 28,  "gbps": 25.0},
-        ],
-        # Stateful aggregate ~21 Gbps, close to the ~24 Gbps stateful
-        # 8-core cap at T_app=2 us -> skew causes hotspots.
-        "trace_mix_stateful": [
-            {"kind": "web",    "n_flows": 240, "gbps": 11.0},
-            {"kind": "hadoop", "n_flows": 18,  "gbps": 10.0},
-        ],
+        # Huang et al. (HAL, ISCA'24) two-layer bursty composite
+        # workload. See src/hal_workload.py. Per-class mix and total
+        # offered load are overridden in make_* below.
+        "source": "hal_composite",
+        "trace_mix_stateless": [],        # unused under hal_composite
+        "trace_mix_stateful":  [],        # unused under hal_composite
+        "per_flow_rate_gbps": 10.0,
+        "mtu_bytes": 1500,
+        # HAL composite knobs (overridden per mix).
+        "hal_mix_web":    1.0 / 3.0,
+        "hal_mix_cache":  1.0 / 3.0,
+        "hal_mix_hadoop": 1.0 / 3.0,
+        # Aggregate offered load. We target ~78% of PCIe (64 Gbps)
+        # so bursts from the lognormal tail drive real PCIe
+        # contention without the link being permanently saturated.
+        "hal_total_gbps": 50.0,
+        # HAL Fig. 8 uses a 100 Gbps link clip for the rate process.
+        "hal_link_gbps": 100.0,
+        # 1 ms matches the visible time-scale of rate change in
+        # HAL Fig. 8 (Huang et al. ISCA'24).
+        "hal_rate_update_ns": 1_000_000.0,
         "max_link_gbps": 200.0,
         "hash_mode": "toeplitz",
         "pattern_shift_period_epochs": 300,
@@ -90,7 +112,9 @@ BASE = {
             [4096, 4500.0],
         ],
         "use_pcie_link": True,
-        "pcie_bandwidth_gbps": 128.0,
+        # Host PCIe link capacity. Per user: the PCIe is 64 Gbps, so
+        # the maximum bandwidth at the host is also 64 Gbps.
+        "pcie_bandwidth_gbps": 64.0,
         "fpga_egress_fifo_bytes": 262144,
         "pcie_setup_ns": 0.0,
     },
@@ -110,13 +134,9 @@ BASE = {
         "W_window_epochs": 8,
         "ewma_alpha": 0.3,
     },
-    # Overridden per experiment below.
     "stateless_scheduler": {
         "scheduler_type": "static",
         "alpha_blend": 0.8,
-        # Hot/cold thresholds calibrated to the steady-state P_q under
-        # this workload (~0.4 mean_P_max). tau_hot ~= 0.35 ensures the
-        # scheduler fires regularly without thrashing.
         "tau_hot_s": 0.35,
         "tau_cold_s": 0.20,
         "fit_condition_tolerance": 0.1,
@@ -126,8 +146,6 @@ BASE = {
         "scheduler_type": "proposed",
         "eta1": 0.6,
         "eta2": 0.4,
-        # Stateful steady-state P_q peaks around 0.35; using 0.30 hot
-        # keeps the stateful scheduler from being a no-op.
         "tau_hot_t": 0.30,
         "tau_cold_t": 0.15,
         "lambda_t": 0.01,
@@ -149,37 +167,59 @@ BASE = {
         "log_time_series": True,
         "log_per_bucket_trace": True,
         "make_plots": True,
-        # Both domains enabled by default (coexistence / phase-2 style).
-        # Isolated-domain configs flip these per suite.
         "enable_stateless": True,
         "enable_stateful": True,
     },
 }
 
 
-# ----------------------------------------------------------------------
-# Stateless matrix: vary stateless_scheduler.scheduler_type; keep
-# stateful fixed to ``static`` so the stateless effect is isolated.
-# ----------------------------------------------------------------------
+# Stateless matrix: vary stateless_scheduler; hold stateful static.
 STATELESS_VARIANTS = [
+    # Only the *_oneshot family is evaluated: greedy variants have
+    # been dropped from the sweep (they make nearly identical
+    # scheduling decisions as the corresponding *_oneshot variant on
+    # this hardware model, so running both is redundant; the legend
+    # label in plots simply drops the "_oneshot" subscript).
     "static",
     "qp_oneshot",
-    "qp_greedy",
     "pred_oneshot",
-    "pred_greedy",
     "pred_qp_oneshot",
-    "pred_qp_greedy",
 ]
 
-# ----------------------------------------------------------------------
-# Stateful pair: vary stateful_scheduler.scheduler_type; hold stateless
-# on the strong variant so stateful effects aren't masked by unbalanced
-# stateless queues.
-# ----------------------------------------------------------------------
+# Stateful pair: (scheduler_type, config_name).
 STATEFUL_VARIANTS = [
-    ("static",   "static"),     # stateful_scheduler.scheduler_type
+    ("static",   "static"),
     ("proposed", "proposed"),
 ]
+
+
+# ----------------------------------------------------------------------
+# Mixes.
+#
+# Each entry is (web_frac, cache_frac, hadoop_frac, total_gbps). Mix
+# fractions sum to 1; per-class Layer-1 target mean rate is
+# ``frac * total_gbps`` Gbps, with burstiness drawn from the HAL
+# paper's per-class lognormal rate process clipped at hal_link_gbps.
+#
+# Single-class mixes use the HAL paper's published per-class average
+# link-utilisation directly (Huang et al. ISCA'24 Fig. 8):
+#
+#     web    1.6  Gbps
+#     cache  5.2  Gbps
+#     hadoop 10.9 Gbps
+#
+# These are far below the 64 Gbps PCIe link, so the host is NOT
+# bandwidth-saturated on average; the bursts from the heavy-tailed
+# lognormal (sigma = 1.97 / 7.55 / 6.56 respectively, all clipped at
+# 100 Gbps) are what drive transient overshoot and queue imbalance.
+# This is the regime in which the scheduler under test can actually
+# differentiate itself, rather than being masked by PCIe saturation.
+# ----------------------------------------------------------------------
+MIXES: dict[str, tuple[float, float, float, float]] = {
+    "web_only":    (1.0, 0.0, 0.0, 1.6),
+    "cache_only":  (0.0, 1.0, 0.0, 5.2),
+    "hadoop_only": (0.0, 0.0, 1.0, 10.9),
+}
 
 
 def _deepcopy(d):
@@ -191,11 +231,60 @@ def _dump(cfg: dict, path: str) -> None:
         yaml.safe_dump(cfg, f, sort_keys=False)
 
 
-def make_stateless(sl_type: str) -> dict:
+def cleanup_stale_yaml(dir_path: str, allowed_stems: set[str]) -> None:
+    """Remove ``*.yaml`` in ``dir_path`` whose stem is not in
+    ``allowed_stems``.
+
+    ``run_comparison`` globs every ``*.yaml`` in a suite directory.
+    After ``STATELESS_VARIANTS`` (or stateful names) shrink, older
+    files such as ``pred_greedy.yaml`` would otherwise keep being run
+    and plotted.
+    """
+    if not os.path.isdir(dir_path):
+        return
+    want = {f"{s}.yaml" for s in allowed_stems}
+    for fn in os.listdir(dir_path):
+        if not fn.endswith(".yaml"):
+            continue
+        if fn not in want:
+            os.remove(os.path.join(dir_path, fn))
+
+
+def _apply_mix(cfg: dict,
+               web: float, cache: float, hadoop: float,
+               total_gbps: float) -> None:
+    cfg["workload"]["hal_mix_web"]    = float(web)
+    cfg["workload"]["hal_mix_cache"]  = float(cache)
+    cfg["workload"]["hal_mix_hadoop"] = float(hadoop)
+    cfg["workload"]["hal_total_gbps"] = float(total_gbps)
+
+
+# Path (relative to repo root) to the trained TCN weights file. The
+# data-gen / training scripts write to models/tcn_pred.pt; only the
+# ``pred_oneshot`` and ``pred_qp_oneshot`` stateless variants actually
+# consume this (other variants don't use the predictor output).
+TCN_CHECKPOINT_PATH = "models/tcn_pred.pt"
+
+
+def _apply_predictor_for_stateless(cfg: dict, sl_type: str) -> None:
+    """Route the stateless pred / pred_qp variants through the trained
+    TCN; leave all other variants on the EWMA baseline.
+
+    ``static`` and ``qp_*`` variants don't consume predictor output, so
+    forcing them onto TCN would pointlessly require the weights file
+    to exist for their YAMLs.
+    """
+    uses_pred = ("pred" in sl_type)
+    if uses_pred:
+        cfg["predictor"]["predictor_type"] = "tcn"
+        cfg["predictor"]["tcn_checkpoint"] = TCN_CHECKPOINT_PATH
+
+
+def make_stateless(sl_type: str, mix: tuple[float, float, float, float]) -> dict:
     """Coexistence stateless matrix: both domains enabled, stateless
-    scheduler varied, stateful held static. Used for phase-2 realism
-    runs where we want to confirm isolated-phase trends survive
-    cross-domain interference on the shared PCIe link."""
+    scheduler varied, stateful held static. Same hal_composite mix
+    is used for *both* domains (stateless sees the composite with
+    proto=UDP, stateful with proto=TCP)."""
     cfg = _deepcopy(BASE)
     cfg["stateless_scheduler"]["scheduler_type"] = sl_type
     cfg["stateful_scheduler"]["scheduler_type"] = "static"
@@ -203,12 +292,13 @@ def make_stateless(sl_type: str) -> dict:
     cfg["experiment"]["name"] = sl_type
     cfg["experiment"]["enable_stateless"] = True
     cfg["experiment"]["enable_stateful"] = True
+    _apply_mix(cfg, *mix)
+    _apply_predictor_for_stateless(cfg, sl_type)
     return cfg
 
 
-def make_stateful(sf_type: str, name: str) -> dict:
-    """Coexistence stateful pair: both domains enabled, stateless held
-    on the canonical strong variant, stateful varied."""
+def make_stateful(sf_type: str, name: str,
+                  mix: tuple[float, float, float, float]) -> dict:
     cfg = _deepcopy(BASE)
     cfg["stateless_scheduler"]["scheduler_type"] = "pred_qp_greedy"
     cfg["stateful_scheduler"]["scheduler_type"] = sf_type
@@ -217,66 +307,69 @@ def make_stateful(sf_type: str, name: str) -> dict:
     cfg["experiment"]["name"] = name
     cfg["experiment"]["enable_stateless"] = True
     cfg["experiment"]["enable_stateful"] = True
+    _apply_mix(cfg, *mix)
     return cfg
 
 
-def make_stateless_only(sl_type: str) -> dict:
-    """Phase-1 stateless-only: stateful domain fully disabled so the
-    algorithm is evaluated in isolation (no cross-domain PCIe
-    interference, no stateful scheduling noise)."""
+def make_stateless_only(sl_type: str,
+                        mix: tuple[float, float, float, float]) -> dict:
+    """Phase-1 stateless-only: only the stateless domain runs. The
+    hal_composite workload is delivered to the stateless pipeline
+    (proto=UDP). 8 cores = 8 RX queues."""
     cfg = _deepcopy(BASE)
     cfg["stateless_scheduler"]["scheduler_type"] = sl_type
     cfg["stateful_scheduler"]["scheduler_type"] = "static"
     cfg["stateful_scheduler"]["max_concurrent_handoffs"] = 0
-    # Empty the stateful workload so even if some future code path
-    # peeks at trace_mix_stateful it finds nothing.
-    cfg["workload"]["trace_mix_stateful"] = []
     cfg["experiment"]["name"] = sl_type
     cfg["experiment"]["enable_stateless"] = True
     cfg["experiment"]["enable_stateful"] = False
+    _apply_mix(cfg, *mix)
+    _apply_predictor_for_stateless(cfg, sl_type)
     return cfg
 
 
-def make_stateful_only(sf_type: str, name: str) -> dict:
-    """Phase-1 stateful-only: stateless domain fully disabled."""
+def make_stateful_only(sf_type: str, name: str,
+                       mix: tuple[float, float, float, float]) -> dict:
+    """Phase-1 stateful-only: only the stateful domain runs. The
+    hal_composite workload is delivered to the stateful pipeline
+    (proto=TCP). 8 cores = 8 RX queues."""
     cfg = _deepcopy(BASE)
     cfg["stateless_scheduler"]["scheduler_type"] = "static"
     cfg["stateful_scheduler"]["scheduler_type"] = sf_type
     if sf_type == "static":
         cfg["stateful_scheduler"]["max_concurrent_handoffs"] = 0
-    cfg["workload"]["trace_mix_stateless"] = []
     cfg["experiment"]["name"] = name
     cfg["experiment"]["enable_stateless"] = False
     cfg["experiment"]["enable_stateful"] = True
+    _apply_mix(cfg, *mix)
     return cfg
 
 
 def main() -> None:
-    sl_dir = os.path.join(ROOT, "configs", "stateless")
-    sf_dir = os.path.join(ROOT, "configs", "stateful")
-    sl_only_dir = os.path.join(ROOT, "configs", "stateless_only")
-    sf_only_dir = os.path.join(ROOT, "configs", "stateful_only")
-    for d in (sl_dir, sf_dir, sl_only_dir, sf_only_dir):
-        os.makedirs(d, exist_ok=True)
+    total_written = 0
+    # Per-mix phase-1 (*_only) suites.
+    for mix_name, mix in MIXES.items():
+        mix_root = os.path.join(ROOT, "configs", f"hal_{mix_name}")
+        sl_only_dir = os.path.join(mix_root, "stateless_only")
+        sf_only_dir = os.path.join(mix_root, "stateful_only")
+        os.makedirs(sl_only_dir, exist_ok=True)
+        os.makedirs(sf_only_dir, exist_ok=True)
+        cleanup_stale_yaml(sl_only_dir, set(STATELESS_VARIANTS))
+        cleanup_stale_yaml(sf_only_dir,
+                           {name for _, name in STATEFUL_VARIANTS})
 
-    for v in STATELESS_VARIANTS:
-        _dump(make_stateless(v), os.path.join(sl_dir, f"{v}.yaml"))
-        _dump(make_stateless_only(v),
-              os.path.join(sl_only_dir, f"{v}.yaml"))
-    for sf_type, name in STATEFUL_VARIANTS:
-        _dump(make_stateful(sf_type, name),
-              os.path.join(sf_dir, f"{name}.yaml"))
-        _dump(make_stateful_only(sf_type, name),
-              os.path.join(sf_only_dir, f"{name}.yaml"))
+        for v in STATELESS_VARIANTS:
+            _dump(make_stateless_only(v, mix),
+                  os.path.join(sl_only_dir, f"{v}.yaml"))
+            total_written += 1
+        for sf_type, name in STATEFUL_VARIANTS:
+            _dump(make_stateful_only(sf_type, name, mix),
+                  os.path.join(sf_only_dir, f"{name}.yaml"))
+            total_written += 1
 
-    print(f"wrote {len(STATELESS_VARIANTS)} coexistence stateless configs "
-          f"under {sl_dir}")
-    print(f"wrote {len(STATEFUL_VARIANTS)} coexistence stateful configs "
-          f"under {sf_dir}")
-    print(f"wrote {len(STATELESS_VARIANTS)} isolated stateless-only configs "
-          f"under {sl_only_dir}")
-    print(f"wrote {len(STATEFUL_VARIANTS)} isolated stateful-only configs "
-          f"under {sf_only_dir}")
+    print(f"wrote {total_written} per-mix configs under "
+          f"configs/hal_<mix>/{{stateless_only,stateful_only}}/")
+    print(f"mixes: {sorted(MIXES.keys())}")
 
 
 if __name__ == "__main__":

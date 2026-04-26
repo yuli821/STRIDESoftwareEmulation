@@ -1,28 +1,44 @@
 """Digitized CDFs approximated from IMC'17 and contemporaneous FB/Meta
 datacenter traffic characterization.
 
+.. warning::
+
+   **Deprecated for per-flow generation.** The IMC'17 microburst
+   characterization (Zhang et al., IMC 2017) reports
+   *per-port / aggregate* inter-packet arrival and burst statistics,
+   not *per-flow* statistics. Using these CDFs to synthesize each
+   individual flow's ON/OFF behavior conflates aggregate and
+   per-flow distributions and is therefore methodologically unsound.
+
+   For bursty per-flow workloads use instead the canonical
+   datacenter-transport methodology implemented in
+   :mod:`src.workload_cdfs` + :func:`src.traces._gen_poisson_flows`
+   (stateless) and :func:`src.traces._gen_rpc_connections`
+   (stateful); see the module docstrings in ``src/traces.py`` and
+   ``src/config.py`` for the exact citations (pFabric SIGCOMM'13,
+   PIAS NSDI'15, Homa SIGCOMM'18, NDP SIGCOMM'17, DCTCP SIGCOMM'10,
+   VL2 SIGCOMM'09, Roy et al. SIGCOMM'15).
+
+   This module is retained unchanged for backward compatibility with
+   legacy ``source: imc17_cdf`` configs and regression tests.
+
 Sources (approximate digitization; the exact numbers are interpolated
-from published figures, so keep these as a *reasonable* realism anchor
-rather than a bit-exact reproduction):
+from published figures):
 
 * Zhang et al., "High-resolution measurement of data center microbursts",
-  IMC 2017. Main source for **inter-packet arrival-time CDFs** at
-  microsecond resolution, per cluster (Web / Cache-follower / Hadoop).
+  IMC 2017. Source for **per-port (aggregate)** inter-packet arrival-time
+  and microburst CDFs at microsecond resolution, per cluster (Web /
+  Cache-follower / Hadoop).
 * Roy et al., "Inside the Social Network's (Datacenter) Network",
-  SIGCOMM 2015. Main source for **flow-size** and **packet-size** CDFs
+  SIGCOMM 2015. Source for **flow-size** and **packet-size** CDFs
   per cluster.
 
 Usage
 -----
 Each CDF is a list of (value, cum_probability) control points, sorted
 ascending by value. The ``CdfSampler`` performs a piecewise-loglinear
-inverse lookup to draw realistic samples. We sample on log(value)
-because all three underlying distributions span multiple orders of
-magnitude.
-
-If you have better digitization (or access to the original raw data),
-drop new (value, cum_prob) points here; every trace generator reads
-from this table via :func:`get_cdf`.
+inverse lookup to draw samples. We sample on log(value) because all
+three underlying distributions span multiple orders of magnitude.
 """
 from __future__ import annotations
 

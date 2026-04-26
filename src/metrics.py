@@ -10,15 +10,28 @@ import numpy as np
 import pandas as pd
 
 
-def fairness(x: np.ndarray, eps: float = 1e-9) -> float:
+def fairness(x: np.ndarray, eps: float = 1e-20) -> float:
     """Jain's fairness index on a non-negative vector.
 
     Returns 1.0 when all entries are equal (perfect fairness) and 1/N in
-    the worst case (one entry concentrates all the mass). Reported in
-    CSV/summary simply as ``fairness_*``.
+    the worst case (one entry concentrates all the mass).
+
+    Edge case: when every entry is (effectively) zero -- e.g. every
+    queue was fully drained in this epoch, which is the ideal outcome
+    -- the ratio is 0/0. By convention we return 1.0 in that case
+    (a perfectly equal distribution of "nothing"). A very small
+    ``eps`` (1e-20) keeps the ratio numerically stable for genuinely
+    tiny non-zero inputs without collapsing the clipped-to-1e-6
+    "all drained" vector to ~0.016, which the earlier eps=1e-9
+    produced and which showed up as spurious downward spikes in the
+    fairness time-series plot on ideal epochs.
     """
     x = np.asarray(x, dtype=np.float64)
-    return float((x.sum()) ** 2 / (x.size * (x * x).sum() + eps))
+    s = x.sum()
+    sq = (x * x).sum()
+    if s <= 0.0 or sq <= 0.0:
+        return 1.0
+    return float(s * s / (x.size * sq + eps))
 
 
 def imbalance(x: np.ndarray, eps: float = 1e-9) -> float:
@@ -52,21 +65,36 @@ class DomainMetricsLog:
     def log_epoch(self, epoch: int, telem: Dict[str, np.ndarray],
                   extra: Dict) -> None:
         P = telem["P_q"]
+        B_q_gen = telem["B_q_gen"]
         row = {
+            # Keep "epoch" as a backward-compatible alias while exposing
+            # the preferred naming ("time_interval") in all new outputs.
+            "time_interval": epoch,
             "epoch": epoch,
-            "total_B_gen": float(telem["B_q_gen"].sum()),
+            "total_B_gen": float(B_q_gen.sum()),
             "total_B_adm": float(telem["B_q_adm"].sum()),
             "total_B_drop": float(telem["B_q_drop"].sum()),
             "total_N_gen": int(telem["N_q_gen"].sum()),
             "total_N_adm": int(telem["N_q_adm"].sum()),
             "total_N_drop": int(telem["N_q_drop"].sum()),
             "drop_ratio": float(telem["B_q_drop"].sum()
-                                / (telem["B_q_gen"].sum() + 1e-9)),
+                                / (B_q_gen.sum() + 1e-9)),
             "P_q_max": float(P.max()),
             "P_q_mean": float(P.mean()),
             "P_q_std": float(P.std()),
+            # fairness_P : Jain's index over the per-queue *pressure*
+            # vector P_q. This is the scheduler's INPUT signal
+            # (dominated by loss ratio + ring occupancy) and is noisy
+            # at 30 us granularity even when the long-run byte
+            # distribution is perfectly balanced.
             "fairness_P": fairness(np.clip(P, 1e-6, None)),
-            "imbalance_B": imbalance(telem["B_q_gen"]),
+            # fairness_B : Jain's index over bytes actually generated
+            # per queue this epoch. This is the cleaner SCHEDULER-
+            # EVALUATION signal and the expected "approaches 1.0"
+            # metric when the scheduler has balanced per-queue load.
+            # Complements fairness_P, does not replace it.
+            "fairness_B": fairness(B_q_gen),
+            "imbalance_B": imbalance(B_q_gen),
             # End-to-end per-packet latency tail summary for this epoch.
             # Measured from FPGA generation to host core service end;
             # trends matter more than absolute numbers per project
@@ -128,6 +156,8 @@ class DomainMetricsLog:
             "mean_P_max": float(df["P_q_max"].mean()),
             "p99_P_max": float(df["P_q_max"].quantile(0.99)),
             "mean_fairness_P": float(df["fairness_P"].mean()),
+            "mean_fairness_B": (float(df["fairness_B"].mean())
+                                if "fairness_B" in df.columns else 0.0),
             "mean_imbalance_B": float(df["imbalance_B"].mean()),
             "total_reassignments": int(sum(self.reassign_counts)),
             "mean_lat_p50_ns": _mean("lat_p50_ns"),

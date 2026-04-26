@@ -19,7 +19,9 @@ def make_predictor(num_queues: int, cfg: PredictorConfig) -> BasePredictor:
         return OraclePredictor(num_queues, cfg.W_window_epochs)
     if t == "tcn":
         return TCNPredictor(num_queues, cfg.W_window_epochs,
-                            cfg.tcn_channels, cfg.tcn_kernel, cfg.tcn_layers)
+                            cfg.tcn_channels, cfg.tcn_kernel,
+                            cfg.tcn_layers,
+                            checkpoint=cfg.tcn_checkpoint)
     if t == "none":
         class _Zero(BasePredictor):
             def predict(self):
